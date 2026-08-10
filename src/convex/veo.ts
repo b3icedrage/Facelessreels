@@ -9,10 +9,22 @@ export const VEO_MODEL =
 /** Hard cap on generated clip length — never more than 30 seconds. */
 export const MAX_DURATION_SECONDS = 30;
 
-/** Clamp a requested duration into the supported range [1, 30] seconds. */
+/** Veo 3.1 preview models accept only 4, 6, or 8 seconds per clip. */
+const VEO_PREVIEW_DURATIONS = [4, 6, 8];
+
+/**
+ * Clamp a requested duration to the product ceiling and, for the Veo 3.1
+ * preview models, snap it to a value the model actually accepts (4/6/8s).
+ */
 export function clampDuration(seconds: number): number {
   if (!Number.isFinite(seconds) || seconds <= 0) return 8;
-  return Math.min(Math.round(seconds), MAX_DURATION_SECONDS);
+  const capped = Math.min(Math.round(seconds), MAX_DURATION_SECONDS);
+  if (VEO_MODEL.includes("generate-preview")) {
+    return VEO_PREVIEW_DURATIONS.reduce((best, d) =>
+      Math.abs(d - capped) < Math.abs(best - capped) ? d : best,
+    VEO_PREVIEW_DURATIONS[0]);
+  }
+  return capped;
 }
 
 const GEMINI_KEY = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -39,7 +51,6 @@ export async function startVeoOperation(prompt: string, parameters: {
         parameters: {
           aspectRatio: parameters.aspectRatio,
           durationSeconds: clampDuration(parameters.durationSeconds),
-          numberOfVideos: 1,
         },
       }),
     },

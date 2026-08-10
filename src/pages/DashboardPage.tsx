@@ -54,7 +54,8 @@ const ASPECTS = [
 ];
 
 const DURATIONS = [
-  { value: 5, label: "5 seconds" },
+  { value: 4, label: "4 seconds" },
+  { value: 6, label: "6 seconds" },
   { value: 8, label: "8 seconds" },
 ];
 
@@ -260,9 +261,9 @@ export function DashboardPage() {
           />
           <StatCard
             icon={CalendarClock}
-            label="Next auto-post"
+            label="Next auto-video"
             value={formatNextDue(stats.nextDueMs)}
-            sub={stats.autoPost ? "pipeline live" : "autopilot off"}
+            sub={stats.autoPost ? "posts instantly when ready" : "autopilot off"}
             tone="accent"
           />
           <StatCard
