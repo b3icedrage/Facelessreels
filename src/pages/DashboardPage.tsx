@@ -162,7 +162,8 @@ export function DashboardPage() {
   }
 
   if (!isAuthenticated) return null;
-  if (!dashboard) {
+  // Still waiting on the first response from the server.
+  if (dashboard === undefined) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-24 sm:px-6">
         <Skeleton className="h-10 w-64" />
@@ -170,6 +171,32 @@ export function DashboardPage() {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+  // Signed in client-side, but the server rejected our session — e.g. it was
+  // issued before a JWT key change or a backend reset. Don't spin forever;
+  // ask the user to sign in again.
+  if (dashboard === null) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-4">
+        <div className="glass flex max-w-md flex-col items-center gap-3 rounded-2xl p-8 text-center">
+          <LogOut className="h-8 w-8 text-muted-foreground" />
+          <h1 className="font-display text-xl font-semibold">Session expired</h1>
+          <p className="text-sm text-muted-foreground">
+            Your login belongs to an older version of the backend. Sign in again and
+            you'll be right back in the studio.
+          </p>
+          <Button
+            className="mt-2"
+            onClick={() => {
+              signOut();
+              navigate("/auth?returnTo=/dashboard");
+            }}
+          >
+            Sign in again
+          </Button>
         </div>
       </div>
     );
