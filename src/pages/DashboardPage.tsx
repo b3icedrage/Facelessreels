@@ -702,6 +702,8 @@ function ReelCard({
   onDelete: () => void;
 }) {
   const meta = STATUS_META[reel.status as Status];
+  const [preview, setPreview] = useState<string | null>(null);
+  const canPreview = Boolean(reel.videoUri);
   return (
     <Card className="group overflow-hidden transition-all hover:border-primary/30">
       <div className="relative aspect-video w-full overflow-hidden bg-muted">
@@ -724,6 +726,18 @@ function ReelCard({
               <Clapperboard className="h-10 w-10 text-muted-foreground" />
             )}
           </div>
+        )}
+        {canPreview && (
+          <button
+            type="button"
+            onClick={() => setPreview(reel.videoUri)}
+            aria-label="Watch video preview"
+            className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/15 transition-colors hover:bg-black/35"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ring-4 ring-white/10 transition-transform duration-200 hover:scale-110">
+              <Play className="h-6 w-6 fill-current" />
+            </span>
+          </button>
         )}
         <Badge variant={meta.variant} className="absolute left-3 top-3 shadow-lg">
           {meta.label}
@@ -769,6 +783,40 @@ function ReelCard({
           </p>
         )}
       </CardContent>
+      {preview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          onClick={() => setPreview(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Video preview"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <video
+              key={preview}
+              src={preview}
+              controls
+              autoPlay
+              playsInline
+              className="max-h-[75vh] w-full"
+            />
+            <button
+              type="button"
+              onClick={() => setPreview(null)}
+              className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white/90 backdrop-blur transition-colors hover:bg-black/85"
+              aria-label="Close preview"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        </div>
+      )}
     </Card>
   );
 }
