@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as http from "../http.js";
 import type * as pipeline from "../pipeline.js";
 import type * as reels from "../reels.js";
 import type * as settings from "../settings.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  http: typeof http;
   pipeline: typeof pipeline;
   reels: typeof reels;
   settings: typeof settings;
