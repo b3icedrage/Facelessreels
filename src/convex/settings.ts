@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-const uid = (identity: { subject: string }) => identity.subject as Id<"users">;
+const uid = (identity: { subject: string }) =>
+  identity.subject.split("|")[0] as Id<"users">;
 
 export const DEFAULT_SETTINGS = {
   autoPost: true,

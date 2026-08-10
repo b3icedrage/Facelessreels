@@ -3,7 +3,8 @@ import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
-const uid = (identity: { subject: string }) => identity.subject as Id<"users">;
+const uid = (identity: { subject: string }) =>
+  identity.subject.split("|")[0] as Id<"users">;
 
 /** The current user's reels, newest first. */
 export const listReels = query({

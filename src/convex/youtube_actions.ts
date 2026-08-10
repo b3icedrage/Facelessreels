@@ -16,7 +16,8 @@ export const YOUTUBE_SCOPES = [
 const clientId = () => process.env.GOOGLE_CLIENT_ID || "";
 const clientSecret = () => process.env.GOOGLE_CLIENT_SECRET || "";
 
-const uid = (identity: { subject: string }) => identity.subject as Id<"users">;
+const uid = (identity: { subject: string }) =>
+  identity.subject.split("|")[0] as Id<"users">;
 
 function makeState(): string {
   const bytes = new Uint8Array(32);
