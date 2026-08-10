@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { clampDuration } from "./veo";
 
 const uid = (identity: { subject: string }) =>
   identity.subject.split("|")[0] as Id<"users">;
@@ -92,17 +93,24 @@ export const updateSettings = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
+    const sanitized = {
+      ...args,
+      ...(args.durationSeconds !== undefined
+        ? { durationSeconds: clampDuration(args.durationSeconds) }
+        : {}),
+    };
+
     const now = Date.now();
     if (!existing) {
       return await ctx.db.insert("settings", {
         userId,
         ...DEFAULT_SETTINGS,
-        ...args,
+        ...sanitized,
         createdAt: now,
         updatedAt: now,
       });
     }
-    await ctx.db.patch(existing._id, { ...args, updatedAt: now });
+    await ctx.db.patch(existing._id, { ...sanitized, updatedAt: now });
     return existing._id;
   },
 });

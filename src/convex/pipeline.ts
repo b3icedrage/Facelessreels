@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { action, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
-import { extractVideoFromOperation, pollVeoOperation } from "./veo";
+import { clampDuration, extractVideoFromOperation, pollVeoOperation } from "./veo";
 
 const POLL_INTERVAL_MS = 15_000;
 const MAX_POLL_ATTEMPTS = 60; // ~15 minutes
@@ -73,13 +73,10 @@ export const pollReel = action({
       thumbnailUri,
     });
 
-    // Decide whether to upload automatically.
-    const shouldPost = await ctx.runQuery(api.settings.shouldAutoPost, {
-      userId: reel.userId,
-    });
-    if (shouldPost) {
-      await ctx.runAction(api.youtube_actions.uploadReel, { reelId: args.reelId });
-    }
+    // Post the finished video to YouTube immediately — no waiting on any
+    // schedule. The posting interval only spaces out new generations, never
+    // the upload of a completed reel.
+    await ctx.runAction(api.youtube_actions.uploadReel, { reelId: args.reelId });
   },
 });
 
@@ -152,13 +149,14 @@ export const runAutoPipeline = mutation({
       const title = idea.title || applyTitleTemplate(settings.titleTemplate, idea.prompt, idea.prompt.slice(0, 60));
       const description = applyDescriptionTemplate(settings.descriptionTemplate, idea.prompt, title);
 
+      const durationSeconds = clampDuration(settings.durationSeconds);
       const reelId = await ctx.db.insert("reels", {
         userId: settings.userId,
         prompt: idea.prompt,
         title,
         description,
         aspectRatio: settings.aspectRatio,
-        durationSeconds: settings.durationSeconds,
+        durationSeconds,
         status: "queued",
         sourceIdeaId: idea._id,
         source: "auto",
@@ -171,7 +169,7 @@ export const runAutoPipeline = mutation({
       await ctx.scheduler.runAfter(0, api.veo.startVeoGenerationAction, {
         prompt: idea.prompt,
         aspectRatio: settings.aspectRatio,
-        durationSeconds: settings.durationSeconds,
+        durationSeconds,
         title,
         description,
         reelId,

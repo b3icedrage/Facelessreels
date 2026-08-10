@@ -6,6 +6,15 @@ export const VEO_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const VEO_MODEL =
   process.env.VEO_MODEL || "veo-3.1-generate-preview";
 
+/** Hard cap on generated clip length — never more than 30 seconds. */
+export const MAX_DURATION_SECONDS = 30;
+
+/** Clamp a requested duration into the supported range [1, 30] seconds. */
+export function clampDuration(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds <= 0) return 8;
+  return Math.min(Math.round(seconds), MAX_DURATION_SECONDS);
+}
+
 const GEMINI_KEY = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 export function geminiHeaders(extra?: Record<string, string>) {
@@ -29,7 +38,7 @@ export async function startVeoOperation(prompt: string, parameters: {
         instances: [{ prompt }],
         parameters: {
           aspectRatio: parameters.aspectRatio,
-          durationSeconds: parameters.durationSeconds,
+          durationSeconds: clampDuration(parameters.durationSeconds),
           numberOfVideos: 1,
         },
       }),
@@ -129,9 +138,10 @@ export const startVeoGenerationAction = action({
     reelId: v.id("reels"),
   },
   handler: async (ctx, args) => {
+    const durationSeconds = clampDuration(args.durationSeconds);
     const operationName = await startVeoOperation(args.prompt, {
       aspectRatio: args.aspectRatio,
-      durationSeconds: args.durationSeconds,
+      durationSeconds,
     });
     await ctx.runMutation(api.reels.setOperation, {
       reelId: args.reelId,

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { clampDuration } from "./veo";
 
 const uid = (identity: { subject: string }) =>
   identity.subject.split("|")[0] as Id<"users">;
@@ -157,6 +158,7 @@ export const createManualReel = mutation({
       .first();
 
     const title = args.title?.trim() || args.prompt.slice(0, 60);
+    const durationSeconds = clampDuration(args.durationSeconds);
     const now = Date.now();
     const reelId = await ctx.db.insert("reels", {
       userId,
@@ -164,7 +166,7 @@ export const createManualReel = mutation({
       title,
       description: args.prompt,
       aspectRatio: args.aspectRatio,
-      durationSeconds: args.durationSeconds,
+      durationSeconds,
       status: "queued",
       source: "manual",
       createdAt: now,
@@ -174,7 +176,7 @@ export const createManualReel = mutation({
     await ctx.scheduler.runAfter(0, api.veo.startVeoGenerationAction, {
       prompt: args.prompt,
       aspectRatio: settings?.aspectRatio || args.aspectRatio,
-      durationSeconds: settings?.durationSeconds || args.durationSeconds,
+      durationSeconds: clampDuration(settings?.durationSeconds || durationSeconds),
       title,
       description: args.prompt,
       reelId,
