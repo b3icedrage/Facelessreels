@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clapperboard, Loader2 } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ export function AuthPage() {
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/dashboard";
+  const returnTo = searchParams.get("returnTo") || "/trading";
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
@@ -71,21 +71,23 @@ export function AuthPage() {
           transition={{ duration: 0.4 }}
         >
           <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-            <span className="rec-dot" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+              <Activity className="h-4 w-4" strokeWidth={2.5} />
+            </span>
             <span className="font-display text-lg font-bold tracking-wide">
-              FACELESS <span className="text-primary">REELS</span>
+              VOLTIX <span className="text-primary">TRADE</span>
             </span>
           </Link>
 
           <Card className="glass shadow-2xl">
             <CardHeader className="space-y-2 text-center">
               <CardTitle className="text-2xl">
-                {mode === "signin" ? "Welcome back" : "Start your studio"}
+                {mode === "signin" ? "Welcome back" : "Create your terminal"}
               </CardTitle>
               <CardDescription>
                 {mode === "signin"
-                  ? "Sign in to manage your automatic video pipeline."
-                  : "Create an account. Then connect YouTube and add your first idea."}
+                  ? "Sign in to open your demo binary trading terminal."
+                  : "Create an account, then connect your Deriv demo token to start trading."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -97,7 +99,7 @@ export function AuthPage() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Your studio name"
+                      placeholder="Your name"
                       autoComplete="name"
                     />
                   </div>
@@ -147,7 +149,7 @@ export function AuthPage() {
               <div className="mt-5 text-center text-sm text-muted-foreground">
                 {mode === "signin" ? (
                   <>
-                    New to Faceless Reels?{" "}
+                    New to Voltix?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -179,8 +181,8 @@ export function AuthPage() {
           </Card>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            <Clapperboard className="mr-1 inline h-3.5 w-3.5" />
-            Your videos generate and post while you sleep.
+            <Activity className="mr-1 inline h-3.5 w-3.5" />
+            Demo trading on Deriv's API — virtual funds only.
           </p>
         </motion.div>
       </div>

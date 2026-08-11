@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 250 18% 6%;
-    --foreground: 0 0% 96%;
-    --card: 250 16% 9%;
-    --card-foreground: 0 0% 96%;
-    --popover: 250 16% 9%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 18 96% 58%;
-    --primary-foreground: 250 30% 8%;
-    --secondary: 340 84% 52%;
+    --background: 224 32% 4%;
+    --foreground: 210 22% 94%;
+    --card: 224 26% 7%;
+    --card-foreground: 210 22% 94%;
+    --popover: 224 26% 7%;
+    --popover-foreground: 210 22% 94%;
+    --primary: 38 92% 55%;
+    --primary-foreground: 224 30% 8%;
+    --secondary: 158 84% 40%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 250 14% 14%;
-    --muted-foreground: 250 8% 62%;
-    --accent: 45 96% 58%;
-    --accent-foreground: 250 30% 8%;
+    --muted: 224 16% 13%;
+    --muted-foreground: 220 12% 60%;
+    --accent: 350 84% 56%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 250 14% 18%;
-    --input: 250 14% 18%;
-    --ring: 18 96% 58%;
-    --radius: 0.75rem;
+    --border: 224 14% 16%;
+    --input: 224 14% 16%;
+    --ring: 38 92% 55%;
+    --radius: 0.5rem;
   }
 
   * {
@@ -37,13 +37,14 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(18 96% 58% / 0.12), transparent),
-      radial-gradient(ellipse 60% 40% at 90% 10%, hsl(340 84% 52% / 0.08), transparent);
+      radial-gradient(ellipse 70% 45% at 50% -15%, hsl(158 84% 40% / 0.09), transparent),
+      radial-gradient(ellipse 55% 40% at 95% 5%, hsl(38 92% 55% / 0.07), transparent),
+      radial-gradient(ellipse 60% 40% at 0% 100%, hsl(350 84% 56% / 0.05), transparent);
     background-attachment: fixed;
   }
 
   ::selection {
-    background: hsl(18 96% 58% / 0.35);
+    background: hsl(38 92% 55% / 0.3);
   }
 }
 
@@ -56,17 +57,20 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent;
   }
 
-  .rec-dot {
-    @apply inline-block h-2.5 w-2.5 rounded-full bg-secondary animate-pulse-rec;
-    box-shadow: 0 0 12px hsl(340 84% 52% / 0.8);
+  .tick-flash-up {
+    animation: flash-green 0.9s ease-out;
+  }
+
+  .tick-flash-down {
+    animation: flash-red 0.9s ease-out;
   }
 
   .shimmer-bar {
     background: linear-gradient(
       90deg,
-      hsl(250 14% 12%) 0%,
-      hsl(250 14% 20%) 50%,
-      hsl(250 14% 12%) 100%
+      hsl(224 16% 10%) 0%,
+      hsl(224 16% 18%) 50%,
+      hsl(224 16% 10%) 100%
     );
     background-size: 200% 100%;
     @apply animate-shimmer;
@@ -75,19 +79,26 @@
   .field-label {
     @apply text-xs font-medium uppercase tracking-wider text-muted-foreground;
   }
+
+  .terminal-grid {
+    background-image:
+      linear-gradient(hsl(224 14% 12% / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(224 14% 12% / 0.35) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
 }
 
-/* Slim scrollbars for a studio feel */
+/* Slim scrollbars for the terminal feel */
 * {
   scrollbar-width: thin;
-  scrollbar-color: hsl(250 14% 24%) transparent;
+  scrollbar-color: hsl(224 14% 24%) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: hsl(250 14% 24%);
+  background: hsl(224 14% 24%);
   border-radius: 8px;
 }
 *::-webkit-scrollbar-track {

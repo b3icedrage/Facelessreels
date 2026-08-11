@@ -49,6 +49,7 @@ export default {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         display: ["Space Grotesk", "Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       keyframes: {
         "accordion-down": {
@@ -59,20 +60,38 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "pulse-rec": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.35" },
-        },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        "flash-green": {
+          "0%": { backgroundColor: "hsl(158 84% 40% / 0.28)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "flash-red": {
+          "0%": { backgroundColor: "hsl(350 84% 56% / 0.28)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.4" },
+        },
+        blink: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-rec": "pulse-rec 1.6s ease-in-out infinite",
         shimmer: "shimmer 2.4s linear infinite",
+        marquee: "marquee 40s linear infinite",
+        "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+        blink: "blink 1.1s step-end infinite",
       },
     },
   },

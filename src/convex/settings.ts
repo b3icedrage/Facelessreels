@@ -1,116 +1,70 @@
-import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-import { clampDuration } from "./veo";
-
-const uid = (identity: { subject: string }) =>
-  identity.subject.split("|")[0] as Id<"users">;
+import { v } from "convex/values";
 
 export const DEFAULT_SETTINGS = {
-  autoPost: true,
-  intervalMinutes: 240, // every 4 hours
-  privacyStatus: "private" as const,
-  aspectRatio: "9:16",
-  durationSeconds: 8,
-  titleTemplate: "{title}",
-  descriptionTemplate: "{prompt}\n\n#shorts #ai #faceless",
+  stake: 10,
+  symbol: "R_100",
+  duration: 1,
+  durationUnit: "m",
+  autoTrade: false,
+  strategy: "ema_cross" as const,
 };
 
-export const getSettings = query({
+export const getMySettings = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-    const settings = await ctx.db
-      .query("settings")
-      .withIndex("by_user", (q) => q.eq("userId", uid(identity)))
-      .first();
-    if (!settings) return null;
-    return settings;
-  },
-});
-
-/**
- * Whether a rendered reel should be auto-uploaded for this user.
- * Internal (no auth check): called from scheduled pipeline actions.
- */
-export const shouldAutoPost = query({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    const account = await ctx.db
-      .query("youtubeAccounts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
-      .first();
-    if (!account) return false;
-    const settings = await ctx.db
-      .query("settings")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
-      .first();
-    return settings?.autoPost ?? true;
-  },
-});
-
-export const ensureSettings = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const userId = uid(identity);
-    const existing = await ctx.db
-      .query("settings")
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const row = await ctx.db
+      .query("tradingSettings")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    if (existing) return existing;
-    const now = Date.now();
-    return await ctx.db.insert("settings", {
-      userId,
-      ...DEFAULT_SETTINGS,
-      createdAt: now,
-      updatedAt: now,
-    });
+    return row;
   },
 });
 
 export const updateSettings = mutation({
   args: {
-    autoPost: v.optional(v.boolean()),
-    intervalMinutes: v.optional(v.number()),
-    privacyStatus: v.optional(
-      v.union(v.literal("public"), v.literal("unlisted"), v.literal("private")),
-    ),
-    aspectRatio: v.optional(v.string()),
-    durationSeconds: v.optional(v.number()),
-    titleTemplate: v.optional(v.string()),
-    descriptionTemplate: v.optional(v.string()),
+    stake: v.optional(v.number()),
+    symbol: v.optional(v.string()),
+    duration: v.optional(v.number()),
+    durationUnit: v.optional(v.string()),
+    autoTrade: v.optional(v.boolean()),
+    strategy: v.optional(v.union(v.literal("ema_cross"), v.literal("rsi"))),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const userId = uid(identity);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db
-      .query("settings")
+      .query("tradingSettings")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
-    const sanitized = {
-      ...args,
-      ...(args.durationSeconds !== undefined
-        ? { durationSeconds: clampDuration(args.durationSeconds) }
-        : {}),
+    const now = Date.now();
+
+    const patch = {
+      ...(args.stake !== undefined ? { stake: Math.max(0.5, Math.min(10000, args.stake)) } : {}),
+      ...(args.symbol ? { symbol: args.symbol } : {}),
+      ...(args.duration !== undefined ? { duration: Math.max(1, args.duration) } : {}),
+      ...(args.durationUnit ? { durationUnit: args.durationUnit } : {}),
+      ...(args.autoTrade !== undefined ? { autoTrade: args.autoTrade } : {}),
+      ...(args.strategy ? { strategy: args.strategy } : {}),
+      updatedAt: now,
     };
 
-    const now = Date.now();
-    if (!existing) {
-      return await ctx.db.insert("settings", {
-        userId,
-        ...DEFAULT_SETTINGS,
-        ...sanitized,
-        createdAt: now,
-        updatedAt: now,
-      });
+    if (existing) {
+      await ctx.db.patch(existing._id, patch);
+      return existing._id;
     }
-    await ctx.db.patch(existing._id, { ...sanitized, updatedAt: now });
-    return existing._id;
+
+    return await ctx.db.insert("tradingSettings", {
+      userId,
+      ...DEFAULT_SETTINGS,
+      ...patch,
+      createdAt: now,
+      updatedAt: now,
+    } as any);
   },
 });

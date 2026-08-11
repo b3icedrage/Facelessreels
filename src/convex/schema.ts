@@ -15,95 +15,52 @@ export default defineSchema({
     isAnonymous: v.optional(v.boolean()),
   }).index("email", ["email"]),
 
-  // A connected YouTube channel per user (OAuth tokens).
-  youtubeAccounts: defineTable({
+  // The user's Deriv demo API token (used to connect the WebSocket).
+  derivAccounts: defineTable({
     userId: v.id("users"),
-    channelId: v.string(),
-    channelTitle: v.string(),
-    channelThumbnail: v.optional(v.string()),
-    accessToken: v.string(),
-    refreshToken: v.string(),
-    tokenExpiresAt: v.number(),
+    apiToken: v.string(),
+    loginId: v.optional(v.string()),
+    currency: v.optional(v.string()),
     connectedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_channel", ["channelId"]),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 
-  // One-time OAuth state tokens for the YouTube connect flow.
-  oauthStates: defineTable({
-    state: v.string(),
-    redirectUri: v.string(),
-    userId: v.string(),
-    createdAt: v.number(),
-  }).index("by_state", ["state"]),
-
-  // The user's content queue — ideas the automatic pipeline works through.
-  contentIdeas: defineTable({
+  // Mirror of trades executed on the user's Deriv demo account, so the app can
+  // show history + stats without replaying the broker API.
+  trades: defineTable({
     userId: v.id("users"),
-    prompt: v.string(),
-    title: v.optional(v.string()),
-    status: v.union(
-      v.literal("queued"),
-      v.literal("in_progress"),
-      v.literal("posted"),
-      v.literal("failed"),
-    ),
-    createdAt: v.number(),
-    usedAt: v.optional(v.number()),
-  })
-    .index("by_user_status", ["userId", "status"])
-    .index("by_user_created", ["userId", "createdAt"]),
-
-  // One video-generation + publish job per reel.
-  reels: defineTable({
-    userId: v.id("users"),
-    prompt: v.string(),
-    title: v.string(),
-    description: v.string(),
-    aspectRatio: v.string(),
-    durationSeconds: v.number(),
-    status: v.union(
-      v.literal("queued"),
-      v.literal("generating"),
-      v.literal("rendered"),
-      v.literal("uploading"),
-      v.literal("posted"),
-      v.literal("failed"),
-    ),
-    error: v.optional(v.string()),
-    operationName: v.optional(v.string()),
-    videoUri: v.optional(v.string()),
-    thumbnailUri: v.optional(v.string()),
-    youtubeVideoId: v.optional(v.string()),
-    youtubeUrl: v.optional(v.string()),
-    sourceIdeaId: v.optional(v.id("contentIdeas")),
+    contractId: v.string(),
+    symbol: v.string(),
+    contractType: v.union(v.literal("CALL"), v.literal("PUT")),
+    duration: v.number(),
+    durationUnit: v.string(),
+    stake: v.number(),
+    payout: v.number(),
+    currency: v.string(),
+    status: v.union(v.literal("open"), v.literal("won"), v.literal("lost"), v.literal("sold")),
+    profit: v.optional(v.number()),
+    entrySpot: v.optional(v.number()),
+    exitSpot: v.optional(v.number()),
+    longcode: v.optional(v.string()),
+    buyTime: v.number(),
+    sellTime: v.optional(v.number()),
     source: v.union(v.literal("manual"), v.literal("auto")),
-    createdAt: v.number(),
     updatedAt: v.number(),
-    postedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_status", ["status"])
-    .index("by_user_created", ["userId", "createdAt"]),
+    .index("by_user_contract", ["userId", "contractId"])
+    .index("by_user_time", ["userId", "buyTime"]),
 
-  // Per-user automation + publishing settings.
-  settings: defineTable({
+  // Per-user trading preferences + auto-trade configuration.
+  tradingSettings: defineTable({
     userId: v.id("users"),
-    autoPost: v.boolean(),
-    intervalMinutes: v.number(),
-    privacyStatus: v.union(
-      v.literal("public"),
-      v.literal("unlisted"),
-      v.literal("private"),
-    ),
-    aspectRatio: v.string(),
-    durationSeconds: v.number(),
-    titleTemplate: v.string(),
-    descriptionTemplate: v.string(),
-    lastPostedAt: v.optional(v.number()),
+    stake: v.number(),
+    symbol: v.string(),
+    duration: v.number(),
+    durationUnit: v.string(),
+    autoTrade: v.boolean(),
+    strategy: v.union(v.literal("ema_cross"), v.literal("rsi")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_autoPost", ["autoPost"]),
+  }).index("by_user", ["userId"]),
 });

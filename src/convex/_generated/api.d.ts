@@ -9,14 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
-import type * as crons from "../crons.js";
-import type * as dashboard from "../dashboard.js";
+import type * as deriv from "../deriv.js";
 import type * as http from "../http.js";
-import type * as pipeline from "../pipeline.js";
-import type * as reels from "../reels.js";
 import type * as settings from "../settings.js";
-import type * as veo from "../veo.js";
-import type * as youtube_actions from "../youtube_actions.js";
+import type * as trades from "../trades.js";
 
 import type {
   ApiFromModules,
@@ -26,14 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
-  crons: typeof crons;
-  dashboard: typeof dashboard;
+  deriv: typeof deriv;
   http: typeof http;
-  pipeline: typeof pipeline;
-  reels: typeof reels;
   settings: typeof settings;
-  veo: typeof veo;
-  youtube_actions: typeof youtube_actions;
+  trades: typeof trades;
 }>;
 
 /**
