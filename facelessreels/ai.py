@@ -14,7 +14,7 @@ if DEFAULT_PROVIDER not in {"nvidia", "openai"}:
     DEFAULT_PROVIDER = "nvidia"
 
 _DEFAULT_MODELS = {
-    "nvidia": "meta/llama-3.3-70b-instruct",
+    "nvidia": "stg/nvidia/nemotron-3.5-bolt-e4b",
     "openai": "gpt-4o-mini",
 }
 _DEFAULT_URLS = {
