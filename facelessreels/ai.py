@@ -1,4 +1,7 @@
-"""Opt-in OpenAI-compatible script generation. No network request occurs on import."""
+"""Opt-in NVIDIA NIM (default) or OpenAI-compatible AI script generation.
+
+No network request occurs on import. Requests happen only when the user passes --ai.
+"""
 from __future__ import annotations
 
 import json
@@ -6,19 +9,47 @@ import os
 import urllib.error
 import urllib.request
 
+DEFAULT_PROVIDER = os.environ.get("FACELESSREELS_AI_PROVIDER", "nvidia").strip().lower()
+if DEFAULT_PROVIDER not in {"nvidia", "openai"}:
+    DEFAULT_PROVIDER = "nvidia"
 
-DEFAULT_MODEL = os.environ.get("FACELESSREELS_AI_MODEL", "gpt-4o-mini")
-API_URL = os.environ.get("FACELESSREELS_AI_BASE_URL", "https://api.openai.com/v1/chat/completions")
+_DEFAULT_MODELS = {
+    "nvidia": "meta/llama-3.1-8b-instruct",
+    "openai": "gpt-4o-mini",
+}
+_DEFAULT_URLS = {
+    "nvidia": "https://integrate.api.nvidia.com/v1/chat/completions",
+    "openai": "https://api.openai.com/v1/chat/completions",
+}
 
 
-def generate_ai_scenes(topic: str, style: str, duration: int, model: str | None = None) -> list[dict]:
-    """Request a structured six-scene draft. Calling this function may incur API charges."""
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+def generate_ai_scenes(
+    topic: str,
+    style: str,
+    duration: int,
+    model: str | None = None,
+    provider: str | None = None,
+) -> list[dict]:
+    """Request a structured six-scene draft. The explicit API call may be billable."""
+    chosen_provider = (provider or DEFAULT_PROVIDER).strip().lower()
+    if chosen_provider not in _DEFAULT_URLS:
+        raise ValueError("provider must be 'nvidia' or 'openai'")
+
+    key_name = "NVIDIA_API_KEY" if chosen_provider == "nvidia" else "OPENAI_API_KEY"
+    api_key = os.environ.get(key_name, "").strip()
     if not api_key:
-        raise ValueError("AI mode requires OPENAI_API_KEY. Set it only if you approve potential API charges.")
-    chosen_model = (model or DEFAULT_MODEL).strip()
+        raise ValueError(
+            f"AI mode requires {key_name}. Set it locally only after reviewing the provider's "
+            "pricing, usage limits, and terms."
+        )
+
+    chosen_model = (model or os.environ.get("FACELESSREELS_AI_MODEL", _DEFAULT_MODELS[chosen_provider])).strip()
     if not chosen_model or len(chosen_model) > 120:
         raise ValueError("model name must contain 1–120 characters")
+
+    api_url = os.environ.get("FACELESSREELS_AI_BASE_URL", _DEFAULT_URLS[chosen_provider]).strip()
+    if not api_url.startswith("https://"):
+        raise ValueError("AI endpoint must use HTTPS")
     system_prompt = (
         "You are a careful short-form video scriptwriter. Return only valid JSON matching "
         '{"title":"string","scenes":[{"label":"string","narration":"string",'
@@ -46,7 +77,7 @@ def generate_ai_scenes(topic: str, style: str, duration: int, model: str | None 
         ],
     }
     request = urllib.request.Request(
-        API_URL,
+        api_url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
