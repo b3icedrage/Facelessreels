@@ -1,10 +1,10 @@
 # FacelessReels AI
 
-A local-first faceless-reel draft generator plus a profit-gated worker lifecycle manager. The generator works offline with built-in templates; it does not call a paid AI API or claim that generated drafts will earn money.
+A local-first faceless-reel draft generator plus a profit-gated worker lifecycle manager. Offline templates remain available without an API key.
 
 ## Faceless reel generation
 
-Requires Python 3.11+ and the standard library. Create a draft pack with a hook, six timed scenes, narration script, SRT captions, visual prompts, and JSON metadata:
+Requires Python 3.11+ and the standard library. Create a draft pack with six timed scenes, narration, SRT captions, visual prompts, and JSON metadata:
 
 ```sh
 python -m facelessreels.reels generate --topic "3 ways to improve study habits"
@@ -14,12 +14,7 @@ python -m facelessreels.reels generate --topic "A simple productivity lesson" --
 
 Styles: `educational`, `story`, `listicle`. Duration is 15–60 seconds. The output folder must not already exist; this prevents accidental overwrites.
 
-Each generated folder contains:
-- `script.txt` — scene-by-scene script
-- `voiceover.txt` — combined narration ready for a voice recording or local text-to-speech tool
-- `captions.srt` — timed subtitle file
-- `visual_prompts.txt` — prompts for sourcing or generating background visuals
-- `reel.json` — scene timing, text, prompts, and safety metadata
+Each output folder contains `script.txt`, `voiceover.txt`, `captions.srt`, `visual_prompts.txt`, and `reel.json`.
 
 Optional: render a simple vertical 1080×1920 caption-card MP4 using a locally installed FFmpeg:
 
@@ -27,24 +22,24 @@ Optional: render a simple vertical 1080×1920 caption-card MP4 using a locally i
 python -m facelessreels.reels generate --topic "3 study tips" --render
 ```
 
-This uses local FFmpeg only. It does not download tools, use stock footage, synthesize a voice, call external AI services, spend money, or publish to social platforms. The MP4 option makes a simple text-card video, not a cinematic video with generated footage or narration. Review factual claims, copyright, and visuals before use.
+This uses local FFmpeg only. It does not download tools, use stock footage, synthesize a voice, call external AI services, spend money, or publish to social platforms. This is a simple text-card video, not cinematic footage.
 
 ## Real AI script generation with NVIDIA NIM (explicit opt-in)
 
-NVIDIA NIM is the default real-AI provider. Create a developer API key from [build.nvidia.com](https://build.nvidia.com/), then set it in your local Termux shell. Never commit keys to GitHub or paste them into chat:
+NVIDIA NIM is the default provider. Create a key through [NVIDIA Build](https://build.nvidia.com/) and set it in your local Termux shell. Never commit API keys to GitHub or paste them into chat:
 
 ```sh
 export NVIDIA_API_KEY='your-nvidia-api-key'
 python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30
 ```
 
-The default model is `meta/llama-3.1-8b-instruct`. You can choose another model available to your NVIDIA API account:
+The default model is `meta/llama-3.3-70b-instruct`. You can specify it explicitly:
 
 ```sh
-python -m facelessreels.reels generate --ai --provider nvidia --model meta/llama-3.1-8b-instruct --topic "Study habits that work" --duration 30
+python -m facelessreels.reels generate --ai --provider nvidia --model meta/llama-3.3-70b-instruct --topic "Study habits that work" --duration 30
 ```
 
-NVIDIA's hosted NIM endpoints use an OpenAI-compatible Chat Completions API at `https://integrate.api.nvidia.com/v1/chat/completions`. See the [NVIDIA API quickstart](https://docs.api.nvidia.com/nim/docs/api-quickstart) for current model availability and account setup. Availability, quotas, pricing, and terms may change; review them in your NVIDIA account before use. Developer access may be intended for prototyping and testing, so confirm commercial/production permissions before monetizing generated content.
+NVIDIA's hosted NIM Chat Completions endpoint is `https://integrate.api.nvidia.com/v1/chat/completions`. Check the [model page](https://build.nvidia.com/meta/llama-3_3-70b-instruct) and [API reference](https://docs.api.nvidia.com/nim/reference/meta-llama-3_3-70b-instruct-infer) for current access, model availability, quotas, pricing and terms. Hosted/free endpoint availability can change; this specific model's Build page has shown a deprecated free endpoint, so confirm an active endpoint is available to your account before relying on it.
 
 An OpenAI-compatible alternative is also supported:
 
@@ -53,7 +48,7 @@ export OPENAI_API_KEY='your-openai-api-key'
 python -m facelessreels.reels generate --ai --provider openai --model gpt-4o-mini --topic "Study habits that work"
 ```
 
-Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; check provider usage limits first. No API key is required for offline mode. This feature writes AI-generated scripts, captions, scene prompts, and metadata. It does not generate footage or voice audio, publish anything, or trigger other paid services. The optional local FFmpeg render remains a simple caption-card MP4. Review claims and rights before publishing.
+Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; the request may incur charges depending on your endpoint and account. This feature writes AI-generated scripts, captions, scene prompts, and metadata. It does not generate footage or voice audio, publish anything, or trigger other paid services. Review factual claims and rights before publishing.
 
 ## Safety defaults
 
