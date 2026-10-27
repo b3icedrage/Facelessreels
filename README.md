@@ -33,13 +33,13 @@ export NVIDIA_API_KEY='your-nvidia-api-key'
 python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30
 ```
 
-The default model is `meta/llama-3.3-70b-instruct`. You can specify it explicitly:
+The default model is `stg/nvidia/nemotron-3.5-bolt-e4b`, NVIDIA's current compact text model listing. You can specify it explicitly:
 
 ```sh
-python -m facelessreels.reels generate --ai --provider nvidia --model meta/llama-3.3-70b-instruct --topic "Study habits that work" --duration 30
+python -m facelessreels.reels generate --ai --provider nvidia --model stg/nvidia/nemotron-3.5-bolt-e4b --topic "Study habits that work" --duration 30
 ```
 
-NVIDIA's hosted NIM Chat Completions endpoint is `https://integrate.api.nvidia.com/v1/chat/completions`. Check the [model page](https://build.nvidia.com/meta/llama-3_3-70b-instruct) and [API reference](https://docs.api.nvidia.com/nim/reference/meta-llama-3_3-70b-instruct-infer) for current access, model availability, quotas, pricing and terms. Hosted/free endpoint availability can change; this specific model's Build page has shown a deprecated free endpoint, so confirm an active endpoint is available to your account before relying on it.
+NVIDIA's hosted NIM Chat Completions endpoint is `https://integrate.api.nvidia.com/v1/chat/completions`. See NVIDIA's [current model catalog](https://build.nvidia.com/models) and [Nemotron 3.5 Bolt API reference](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-bolt-e4b-infer) for current access, quotas, pricing and terms. NVIDIA documents `stg/nvidia/nemotron-3.5-bolt-e4b` for standalone gateway requests; endpoint availability may change.
 
 An OpenAI-compatible alternative is also supported:
 
