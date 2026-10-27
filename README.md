@@ -1,71 +1,50 @@
-# Faceless Reels 🎬
+# FacelessReels AI
 
-An AI video studio that turns one-line prompts into finished YouTube videos — generated
-by Google Veo, titled, described, and published to your channel on autopilot.
+Profit-gated worker lifecycle manager. Evaluates verified USD income minus recorded costs over a rolling 24-hour UTC window. Target: $5 net profit per day. On target, records at most one bounded worker configuration; below target, marks active worker records stopped.
 
-## How it works
+## Safety defaults
+- Maximum workers: 3, including the original.
+- Maximum clone generations: 2.
+- Revenue is accepted only as HMAC-Signed internal events; duplicate source references are rejected.
+- Worker copies are configuration records, not recursively copied or executed code.
+- No automatic spending, publishing, or external actions. Evaluations run manually.
+- SQLite data is stored locally in `data/facelessreels.sqlite3`.
 
-1. **Describe an idea** — drop a prompt into the queue (or generate one instantly).
-2. **Veo renders it** — Google Veo 3.1 (via the Gemini API) turns the prompt into real
-   footage in your chosen aspect ratio and duration.
-3. **YouTube posts it** — the reel is uploaded with your title/description templates and
-   privacy setting, on a schedule you control. Fully automatic.
+## Setup
+Requires Python 3.11+, standard library only.
+```sh
+python -m venv .venv
+. .venv/bin/activate
+python -m unittest discover -s tests -v
+python -m facelessreels.agent init
+python -m facelessreels.agent status
+```
+Set a strong secret in the runtime environment (do not commit it):
+```sh
+export FACELESSREELS_REVENUE_HMAC_KEY='replace-with-a-long-random-secret'
+```
+`.env.example` documents configuration; it is not automatically loaded.
 
-## Stack
+## Record a cost
+```sh
+python -m facelessreels.agent cost --amount 1.25 --source video-render --source-ref render-001
+```
+Use unique references for expenses.
 
-- **Frontend**: React + Vite + TypeScript + Tailwind + shadcn-style UI + Framer Motion
-- **Backend**: Convex (database, auth, background actions, crons)
-- **Auth**: Convex Auth (email + password)
-- **AI video**: Google Veo via the Gemini API (`veo-3.1-generate-preview`)
-- **Publishing**: YouTube Data API v3 (resumable upload + OAuth2 refresh tokens)
+## Verified revenue events
+JSON fields: `kind`=`income`, `source`, unique `source_ref`, positive `amount`, `currency`=`USD`, optional timezone-aware ISO `timestamp`, and `signature`. Signature is lowercase hex HMAC-SHA256 of canonical JSON of all fields except signature (sorted keys, separators `,` and `:`). Sign only in a trusted backend after independently verifying completed provider settlement; do not sign views, likes, estimates, pending payouts, or self-reported amounts. No payment-provider adapter is included yet.
 
-## Local development
-
-```bash
-bun install
-bunx convex dev --once   # generates types + pushes functions to the local deployment
-bun run dev              # Vite on http://localhost:5173
+```sh
+python -m facelessreels.agent revenue --event-file revenue-event.json
+python -m facelessreels.agent evaluate
+python -m facelessreels.agent status
 ```
 
-## Required environment variables
+## Evaluation rules
+- Rolling 24 hours, UTC; net = verified revenue less recorded costs.
+- Net >= $5: create one child record if worker/generation caps permit.
+- Net < $5: controlled shutdown stops all active worker records.
+- Evaluation is manual. Worker records do not run tasks or replicate executable code.
 
-Set these in the **Freebuff API Keys** tab (they are read server-side by Convex actions):
-
-| Variable | Where to get it | Purpose |
-| --- | --- | --- |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) | Veo video generation |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console → OAuth client | YouTube OAuth connect |
-| `GOOGLE_CLIENT_SECRET` | Google Cloud Console → OAuth client | YouTube OAuth connect |
-
-Optional: `VEO_MODEL` (defaults to `veo-3.1-generate-preview`).
-
-## YouTube connection setup (one-time, ~10 minutes)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → create a project
-   (or pick one).
-2. **Enable APIs**: search for and enable **YouTube Data API v3**.
-3. **OAuth consent screen**: configure it as *External*; add your email as a test user.
-4. **Credentials → Create credentials → OAuth client ID** → Application type: *Web
-   application*.
-5. Add the **Authorized redirect URI**: `<your-app-origin>/youtube/callback`
-   (for the preview: the Freebuff preview URL; for production: the deployed URL).
-6. Copy the **Client ID** and **Client secret** into the `GOOGLE_CLIENT_ID` /
-   `GOOGLE_CLIENT_SECRET` env vars.
-7. In the app: **Connect YouTube** → approve the consent screen. Done.
-
-> Tip: the app requests offline access, so it stores a refresh token and can keep posting
-> without you re-authorizing. Privacy defaults to `private` — switch to `unlisted` or
-> `public` when you're ready.
-
-## The automatic pipeline
-
-The `pipeline:runAutoPipeline` cron (every 3 minutes) walks every user with autopilot
-enabled:
-
-- has a connected YouTube account,
-- has no job currently in flight,
-- the posting interval has elapsed since the last post,
-- and there's a queued idea —
-
-and starts the next reel. Failed generations are re-queued and surfaced in the library
-for one-click retry.
+## Before production
+Implement a provider-specific signature/settlement verifier, protect and rotate secrets, add auth before any API exposure, back up the database, and review platform rules and actual operating costs. Passing tests cannot guarantee profit.
