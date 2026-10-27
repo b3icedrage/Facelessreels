@@ -3,7 +3,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from facelessreels.ai import generate_ai_scenes
+from facelessreels.ai import _strip_special_tokens, generate_ai_scenes
 
 
 def provider_response():
@@ -24,6 +24,10 @@ def provider_response():
 
 
 class AIProviderTests(unittest.TestCase):
+    def test_strips_special_tokens_but_preserves_prose(self):
+        text = '<|im_start|>assistant\nHello <|eot_id|> world. </s> [INST]go[/INST] <<SYS>>note<</SYS>>'
+        self.assertEqual(_strip_special_tokens(text), 'assistant\nHello  world.  go note')
+
     def test_requires_explicitly_configured_api_key(self):
         with patch.dict(os.environ, {"NVIDIA_API_KEY": "", "OPENAI_API_KEY": ""}):
             with self.assertRaisesRegex(ValueError, "requires NVIDIA_API_KEY"):
