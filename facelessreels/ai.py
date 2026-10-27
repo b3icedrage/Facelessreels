@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 
@@ -22,6 +23,20 @@ _DEFAULT_URLS = {
     "openai": "https://api.openai.com/v1/chat/completions",
 }
 DEFAULT_MODEL = os.environ.get("FACELESSREELS_AI_MODEL", _DEFAULT_MODELS[DEFAULT_PROVIDER])
+
+# Remove common tokenizer/control markers if a provider includes them in text.
+_SPECIAL_TOKEN_RE = re.compile(
+    r"<\\|[^|<>]{1,80}\\|>|</?s>|\\[/?INST\\]|\\[/?SYS\\]|<\\|im_(?:start|end|sep)\\|>",
+    re.IGNORECASE,
+)
+
+
+def _strip_special_tokens(value: str) -> str:
+    """Remove common model control tokens without altering ordinary prose."""
+    value = _SPECIAL_TOKEN_RE.sub("", value)
+    # Providers occasionally wrap JSON in Markdown fences despite being asked not to.
+    value = re.sub(r"^\\s*```(?:json)?\\s*|\\s*```\\s*$", "", value, flags=re.IGNORECASE)
+    return value.strip()
 
 
 def generate_ai_scenes(
@@ -60,12 +75,12 @@ def generate_ai_scenes(
         "Avoid fabricated statistics, guaranteed income claims, medical/legal/financial certainty, "
         "copyrighted character imitation, brands/logos, readable text in visual prompts, and deceptive claims. "
         "Visual prompts must describe original faceless 9:16 imagery suitable as background footage. "
-        "Keep narration concise enough for the requested duration. Do not include markdown."
+        "Keep narration concise enough for the requested duration. Do not include markdown or tokenizer special tokens."
     )
     user_prompt = (
-        f"Topic: {topic}\nStyle: {style}\nTarget duration: {duration} seconds. "
+        f"Topic: {topic}\\nStyle: {style}\\nTarget duration: {duration} seconds. "
         "Create six concise scenes with narration, short on-screen text, and a visual prompt. "
-        "The CTA must not promise results."
+        "Return plain JSON only. Do not emit special tokens or control markers. The CTA must not promise results."
     )
     payload = {
         "model": chosen_model,
@@ -95,7 +110,7 @@ def generate_ai_scenes(
         raise ValueError(f"AI provider response could not be read: {exc}") from exc
 
     try:
-        raw = response_data["choices"][0]["message"]["content"]
+        raw = _strip_special_tokens(response_data["choices"][0]["message"]["content"])
         data = json.loads(raw)
         raw_scenes = data["scenes"]
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
@@ -117,7 +132,7 @@ def generate_ai_scenes(
             value = item.get(key)
             if not isinstance(value, str):
                 raise ValueError(f"AI scene is missing string field {key}; no files were written")
-            value = " ".join(value.split()).strip()
+            value = " ".join(_strip_special_tokens(value).split()).strip()
             if not value or len(value) > limit:
                 raise ValueError(f"AI field {key} must contain 1–{limit} characters; no files were written")
             fields[key] = value
