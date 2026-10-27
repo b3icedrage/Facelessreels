@@ -52,7 +52,8 @@ class AIProviderTests(unittest.TestCase):
         self.assertIn("/v1beta/models/gemini-3.6-flash:generateContent", request.full_url)
         self.assertEqual(request.get_header("X-goog-api-key"), "gemini-test-key")
         self.assertEqual(payload["generationConfig"]["responseMimeType"], "application/json")
-\n    def test_requires_explicitly_configured_api_key(self):
+
+    def test_requires_explicitly_configured_api_key(self):
         with patch.dict(os.environ, {"NVIDIA_API_KEY": "", "OPENAI_API_KEY": ""}):
             with self.assertRaisesRegex(ValueError, "requires NVIDIA_API_KEY"):
                 generate_ai_scenes("study tips", "educational", 30, provider="nvidia")
