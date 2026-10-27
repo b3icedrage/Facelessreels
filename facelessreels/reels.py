@@ -95,13 +95,13 @@ def srt_time(seconds: int) -> str:
 def write_pack(topic: str, output: str, style: str = "educational",
                duration: int = 30, render: bool = False, ai: bool = False,
                model: str | None = None) -> dict:
-    # Validate inputs locally before making any optional network request.
+    # Validate inputs and the output path before any optional network request.
     build_scenes(topic, style, duration)
     topic = " ".join(topic.split())
-    scenes = generate_ai_scenes(topic, style, duration, model) if ai else build_scenes(topic, style, duration)
     destination = Path(output).expanduser()
     if destination.exists():
         raise ValueError(f"output path already exists; choose a new folder: {destination}")
+    scenes = generate_ai_scenes(topic, style, duration, model) if ai else build_scenes(topic, style, duration)
     destination.mkdir(parents=True)
     try:
         script = "\n\n".join(f"{s['label']}\n{s['narration']}" for s in scenes) + "\n"
