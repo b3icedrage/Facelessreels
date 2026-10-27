@@ -188,7 +188,7 @@ def main(argv=None) -> int:
     generate.add_argument("--duration", type=int, choices=range(15, 61), default=30)
     generate.add_argument("--render", action="store_true", help="optionally render caption-card MP4 using local ffmpeg")
     generate.add_argument("--ai", action="store_true", help="EXPLICITLY call the configured AI API; may incur charges")
-    generate.add_argument("--provider", choices=("nvidia", "openai"), default=DEFAULT_PROVIDER, help="AI provider (default: NVIDIA NIM); used only with --ai")
+    generate.add_argument("--provider", choices=("gemini", "nvidia", "openai"), default=DEFAULT_PROVIDER, help="AI provider (default: Google Gemini); used only with --ai")
     generate.add_argument("--model", default=None, help=f"AI model (default: {DEFAULT_MODEL}); used only with --ai")
     args = parser.parse_args(argv)
     try:
