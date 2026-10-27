@@ -25,12 +25,12 @@ def provider_response():
 
 class AIProviderTests(unittest.TestCase):
     def test_requires_explicitly_configured_api_key(self):
-        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
-            with self.assertRaisesRegex(ValueError, "requires OPENAI_API_KEY"):
+        with patch.dict(os.environ, {"NVIDIA_API_KEY": "", "OPENAI_API_KEY": ""}):
+            with self.assertRaisesRegex(ValueError, "requires NVIDIA_API_KEY"):
                 generate_ai_scenes("study tips", "educational", 30)
 
     def test_parses_structured_ai_response_and_sets_timing_locally(self):
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+        with patch.dict(os.environ, {"NVIDIA_API_KEY": "test-key", "FACELESSREELS_AI_BASE_URL": "https://integrate.api.nvidia.com/v1/chat/completions"}):
             with patch("urllib.request.urlopen", return_value=provider_response()) as mocked:
                 scenes = generate_ai_scenes("study tips", "educational", 30, "test-model")
         self.assertEqual(len(scenes), 6)
@@ -41,6 +41,8 @@ class AIProviderTests(unittest.TestCase):
         request = mocked.call_args.args[0]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["model"], "test-model")
+        self.assertEqual(request.full_url, "https://integrate.api.nvidia.com/v1/chat/completions")
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-key")
         self.assertEqual(payload["response_format"]["type"], "json_object")
         self.assertEqual(mocked.call_args.kwargs["timeout"], 45)
 
