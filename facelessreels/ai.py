@@ -1,4 +1,4 @@
-"""Opt-in NVIDIA NIM (default) or OpenAI-compatible AI script generation.
+"""Opt-in Google Gemini (default), NVIDIA NIM, or OpenAI-compatible AI script generation.
 
 No network request occurs on import. Requests happen only when the user passes --ai.
 """
@@ -10,15 +10,17 @@ import re
 import urllib.error
 import urllib.request
 
-DEFAULT_PROVIDER = os.environ.get("FACELESSREELS_AI_PROVIDER", "nvidia").strip().lower()
-if DEFAULT_PROVIDER not in {"nvidia", "openai"}:
-    DEFAULT_PROVIDER = "nvidia"
+DEFAULT_PROVIDER = os.environ.get("FACELESSREELS_AI_PROVIDER", "gemini").strip().lower()
+if DEFAULT_PROVIDER not in {"gemini", "nvidia", "openai"}:
+    DEFAULT_PROVIDER = "gemini"
 
 _DEFAULT_MODELS = {
+    "gemini": "gemini-3.6-flash",
     "nvidia": "stg/nvidia/nemotron-3.5-bolt-e4b",
     "openai": "gpt-4o-mini",
 }
 _DEFAULT_URLS = {
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/models",
     "nvidia": "https://integrate.api.nvidia.com/v1/chat/completions",
     "openai": "https://api.openai.com/v1/chat/completions",
 }
@@ -49,9 +51,9 @@ def generate_ai_scenes(
     """Request a structured six-scene draft. The explicit API call may be billable."""
     chosen_provider = (provider or DEFAULT_PROVIDER).strip().lower()
     if chosen_provider not in _DEFAULT_URLS:
-        raise ValueError("provider must be 'nvidia' or 'openai'")
+        raise ValueError("provider must be 'gemini', 'nvidia', or 'openai'")
 
-    key_name = "NVIDIA_API_KEY" if chosen_provider == "nvidia" else "OPENAI_API_KEY"
+    key_name = {"gemini": "GEMINI_API_KEY", "nvidia": "NVIDIA_API_KEY", "openai": "OPENAI_API_KEY"}[chosen_provider]
     api_key = os.environ.get(key_name, "").strip()
     if not api_key:
         raise ValueError(
@@ -63,7 +65,13 @@ def generate_ai_scenes(
     if not chosen_model or len(chosen_model) > 120:
         raise ValueError("model name must contain 1–120 characters")
 
-    api_url = os.environ.get("FACELESSREELS_AI_BASE_URL", _DEFAULT_URLS[chosen_provider]).strip()
+    configured_url = os.environ.get("FACELESSREELS_AI_BASE_URL", "").strip()
+    if chosen_provider == "gemini":
+        from urllib.parse import quote
+        default_url = f"{_DEFAULT_URLS['gemini']}/{quote(chosen_model, safe='-._')}:generateContent"
+        api_url = configured_url or default_url
+    else:
+        api_url = configured_url or _DEFAULT_URLS[chosen_provider]
     if not api_url.startswith("https://"):
         raise ValueError("AI endpoint must use HTTPS")
     system_prompt = (
@@ -82,20 +90,33 @@ def generate_ai_scenes(
         "Create six concise scenes with narration, short on-screen text, and a visual prompt. "
         "Return plain JSON only. Do not emit special tokens or control markers. The CTA must not promise results."
     )
-    payload = {
-        "model": chosen_model,
-        "temperature": 0.7,
-        "max_tokens": 1800,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
+    if chosen_provider == "gemini":
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 1800,
+                "responseMimeType": "application/json",
+            },
+        }
+        headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+    else:
+        payload = {
+            "model": chosen_model,
+            "temperature": 0.7,
+            "max_tokens": 1800,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     request = urllib.request.Request(
         api_url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -110,7 +131,12 @@ def generate_ai_scenes(
         raise ValueError(f"AI provider response could not be read: {exc}") from exc
 
     try:
-        raw = _strip_special_tokens(response_data["choices"][0]["message"]["content"])
+        if chosen_provider == "gemini":
+            parts = response_data["candidates"][0]["content"]["parts"]
+            raw_text = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
+        else:
+            raw_text = response_data["choices"][0]["message"]["content"]
+        raw = _strip_special_tokens(raw_text)
         data = json.loads(raw)
         raw_scenes = data["scenes"]
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
