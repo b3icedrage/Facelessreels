@@ -86,7 +86,7 @@ def generate_ai_scenes(
         "Keep narration concise enough for the requested duration. Do not include markdown or tokenizer special tokens."
     )
     user_prompt = (
-        f"Topic: {topic}\\nStyle: {style}\\nTarget duration: {duration} seconds. "
+        f"Topic: {topic}\nStyle: {style}\nTarget duration: {duration} seconds. "
         "Create six concise scenes with narration, short on-screen text, and a visual prompt. "
         "Return plain JSON only. Do not emit special tokens or control markers. The CTA must not promise results."
     )
@@ -95,7 +95,6 @@ def generate_ai_scenes(
             "systemInstruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
             "generationConfig": {
-                "temperature": 0.7,
                 "maxOutputTokens": 1800,
                 "responseMimeType": "application/json",
             },
