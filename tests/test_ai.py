@@ -52,7 +52,7 @@ class AIProviderTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, limit): return json.dumps(body).encode("utf-8")
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+        with patch.dict(os.environ, {"NVIDIA_API_KEY": "test-key"}):
             with patch("urllib.request.urlopen", return_value=Response()):
                 with self.assertRaisesRegex(ValueError, "exactly six scenes"):
                     generate_ai_scenes("study tips", "educational", 30)
