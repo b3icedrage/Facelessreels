@@ -21,6 +21,7 @@ _DEFAULT_URLS = {
     "nvidia": "https://integrate.api.nvidia.com/v1/chat/completions",
     "openai": "https://api.openai.com/v1/chat/completions",
 }
+DEFAULT_MODEL = os.environ.get("FACELESSREELS_AI_MODEL", _DEFAULT_MODELS[DEFAULT_PROVIDER])
 
 
 def generate_ai_scenes(
