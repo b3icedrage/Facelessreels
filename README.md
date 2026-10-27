@@ -24,22 +24,23 @@ python -m facelessreels.reels generate --topic "3 study tips" --render
 
 This uses local FFmpeg only. It does not download tools, use stock footage, synthesize a voice, call external AI services, spend money, or publish to social platforms. This is a simple text-card video, not cinematic footage.
 
-## Real AI script generation with NVIDIA NIM (explicit opt-in)
+## Real AI script generation with Google Gemini (explicit opt-in)
 
-NVIDIA NIM is the default provider. Create a key through [NVIDIA Build](https://build.nvidia.com/) and set it in your local Termux shell. Never commit API keys to GitHub or paste them into chat:
+Google Gemini is the default provider. Create an API key in [Google AI Studio](https://aistudio.google.com/) and set it locally in Termux. Free usage is subject to Google's model availability, quota limits, account eligibility, and terms; neither a free tier nor an API key is guaranteed to last forever.
 
 ```sh
-export NVIDIA_API_KEY='your-nvidia-api-key'
+export GEMINI_API_KEY='your-gemini-api-key'
 python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30
 ```
 
-The default model is `stg/nvidia/nemotron-3.5-bolt-e4b`, NVIDIA's current compact text model listing. You can specify it explicitly:
+The default model is `gemini-3.6-flash`. The Gemini REST API uses the `x-goog-api-key` header and a model-specific `generateContent` endpoint. See Google's [API reference](https://ai.google.dev/api/) and [pricing/free-tier details](https://ai.google.dev/gemini-api/docs/pricing).
+
+NVIDIA NIM remains available as a fallback:
 
 ```sh
-python -m facelessreels.reels generate --ai --provider nvidia --model stg/nvidia/nemotron-3.5-bolt-e4b --topic "Study habits that work" --duration 30
+export NVIDIA_API_KEY='your-nvidia-api-key'
+python -m facelessreels.reels generate --ai --provider nvidia --model stg/nvidia/nemotron-3.5-bolt-e4b --topic "Study habits that work"
 ```
-
-NVIDIA's hosted NIM Chat Completions endpoint is `https://integrate.api.nvidia.com/v1/chat/completions`. See NVIDIA's [current model catalog](https://build.nvidia.com/models) and [Nemotron 3.5 Bolt API reference](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-bolt-e4b-infer) for current access, quotas, pricing and terms. NVIDIA documents `stg/nvidia/nemotron-3.5-bolt-e4b` for standalone gateway requests; endpoint availability may change.
 
 An OpenAI-compatible alternative is also supported:
 
@@ -48,7 +49,7 @@ export OPENAI_API_KEY='your-openai-api-key'
 python -m facelessreels.reels generate --ai --provider openai --model gpt-4o-mini --topic "Study habits that work"
 ```
 
-Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; the request may incur charges depending on your endpoint and account. This feature writes AI-generated scripts, captions, scene prompts, and metadata. It does not generate footage or voice audio, publish anything, or trigger other paid services. Review factual claims and rights before publishing.
+Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; costs depend on the selected provider, model, account, and endpoint. This feature writes AI-generated scripts, captions, scene prompts, and metadata. It does not generate footage or voice audio, publish anything, or trigger other paid services. Review factual claims and rights before publishing.
 
 ## Safety defaults
 
