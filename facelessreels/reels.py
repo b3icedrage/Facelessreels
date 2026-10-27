@@ -11,7 +11,7 @@ import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 
-from facelessreels.ai import DEFAULT_MODEL, generate_ai_scenes
+from facelessreels.ai import DEFAULT_MODEL, DEFAULT_PROVIDER, generate_ai_scenes
 
 STYLES = {
     "educational": {
@@ -94,14 +94,14 @@ def srt_time(seconds: int) -> str:
 
 def write_pack(topic: str, output: str, style: str = "educational",
                duration: int = 30, render: bool = False, ai: bool = False,
-               model: str | None = None) -> dict:
+               model: str | None = None, provider: str | None = None) -> dict:
     # Validate inputs and the output path before any optional network request.
     build_scenes(topic, style, duration)
     topic = " ".join(topic.split())
     destination = Path(output).expanduser()
     if destination.exists():
         raise ValueError(f"output path already exists; choose a new folder: {destination}")
-    scenes = generate_ai_scenes(topic, style, duration, model) if ai else build_scenes(topic, style, duration)
+    scenes = generate_ai_scenes(topic, style, duration, model, provider) if ai else build_scenes(topic, style, duration)
     destination.mkdir(parents=True)
     try:
         script = "\n\n".join(f"{s['label']}\n{s['narration']}" for s in scenes) + "\n"
@@ -120,8 +120,8 @@ def write_pack(topic: str, output: str, style: str = "educational",
             "title": topic[:90], "topic": topic, "style": style,
             "duration_seconds": duration, "aspect_ratio": "9:16",
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "mode": "openai_api_draft" if ai else "offline_template_draft",
-            "ai_provider": "openai_compatible_api" if ai else None,
+            "mode": f"{provider or DEFAULT_PROVIDER}_api_draft" if ai else "offline_template_draft",
+            "ai_provider": (provider or DEFAULT_PROVIDER) if ai else None,
             "ai_model": model or DEFAULT_MODEL if ai else None,
             "notice": "Draft only. Review claims, rights, captions and visuals before publishing.",
             "publishing_enabled": False, "paid_actions_enabled": False,
@@ -188,11 +188,12 @@ def main(argv=None) -> int:
     generate.add_argument("--duration", type=int, choices=range(15, 61), default=30)
     generate.add_argument("--render", action="store_true", help="optionally render caption-card MP4 using local ffmpeg")
     generate.add_argument("--ai", action="store_true", help="EXPLICITLY call the configured AI API; may incur charges")
+    generate.add_argument("--provider", choices=("nvidia", "openai"), default=DEFAULT_PROVIDER, help="AI provider (default: NVIDIA NIM); used only with --ai")
     generate.add_argument("--model", default=None, help=f"AI model (default: {DEFAULT_MODEL}); used only with --ai")
     args = parser.parse_args(argv)
     try:
         output = args.out or str(Path("output") / slugify(args.topic))
-        result = write_pack(args.topic, output, args.style, args.duration, args.render, args.ai, args.model)
+        result = write_pack(args.topic, output, args.style, args.duration, args.render, args.ai, args.model, args.provider)
         print(json.dumps(result, indent=2))
         return 0
     except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
