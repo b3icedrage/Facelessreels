@@ -26,7 +26,7 @@ DEFAULT_MODEL = os.environ.get("FACELESSREELS_AI_MODEL", _DEFAULT_MODELS[DEFAULT
 
 # Remove common tokenizer/control markers if a provider includes them in text.
 _SPECIAL_TOKEN_RE = re.compile(
-    r"<\|[^|<>]{1,80}\|>|</?s>|\[/?INST\]|\[/?SYS\]|<\|im_(?:start|end|sep)\|>",
+    r"<\|[^|<>]{1,120}\|>|</?s>|</?[^<>]*?(?:end_of_task|fim_suffix|eot_id|end_of_text|begin_of_text|ghissue|ghreview|pad|unk)[^<>]*?>|\[/?INST\]|\[/?SYS\]|<<SYS>>|<</SYS>>,
     re.IGNORECASE,
 )
 
