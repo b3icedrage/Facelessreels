@@ -26,7 +26,7 @@ DEFAULT_MODEL = os.environ.get("FACELESSREELS_AI_MODEL", _DEFAULT_MODELS[DEFAULT
 
 # Remove common tokenizer/control markers if a provider includes them in text.
 _SPECIAL_TOKEN_RE = re.compile(
-    r"<\\|[^|<>]{1,80}\\|>|</?s>|\\[/?INST\\]|\\[/?SYS\\]|<\\|im_(?:start|end|sep)\\|>",
+    r"<\|[^|<>]{1,80}\|>|</?s>|\[/?INST\]|\[/?SYS\]|<\|im_(?:start|end|sep)\|>",
     re.IGNORECASE,
 )
 
@@ -35,7 +35,7 @@ def _strip_special_tokens(value: str) -> str:
     """Remove common model control tokens without altering ordinary prose."""
     value = _SPECIAL_TOKEN_RE.sub("", value)
     # Providers occasionally wrap JSON in Markdown fences despite being asked not to.
-    value = re.sub(r"^\\s*```(?:json)?\\s*|\\s*```\\s*$", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", value, flags=re.IGNORECASE)
     return value.strip()
 
 
