@@ -29,6 +29,25 @@ python -m facelessreels.reels generate --topic "3 study tips" --render
 
 This uses local FFmpeg only. It does not download tools, use stock footage, synthesize a voice, call external AI services, spend money, or publish to social platforms. The MP4 option makes a simple text-card video, not a cinematic video with generated footage or narration. Review factual claims, copyright, and visuals before use.
 
+## Real AI script generation (explicit opt-in)
+
+The default remains offline templates. To request an original script from an OpenAI-compatible Chat Completions API, first set your API key in your local shell (never commit it):
+
+```sh
+export OPENAI_API_KEY='your-api-key'
+python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30
+```
+
+Choose a model explicitly if needed:
+
+```sh
+python -m facelessreels.reels generate --ai --model gpt-4o-mini --topic "Study habits that work" --duration 30
+```
+
+The AI request is made only when you explicitly pass `--ai`. API usage may incur charges according to your provider and account; check your provider's pricing and usage limits first. No key is required for offline mode. Set `FACELESSREELS_AI_MODEL` to change the default model, or `FACELESSREELS_AI_BASE_URL` to use a compatible endpoint. The provider must support Chat Completions and JSON-object response mode. Do not use an untrusted endpoint with a real API key.
+
+AI creates a draft script, not a finished cinematic video. It does not create video footage or voice audio, publish anything, or automatically spend money beyond the API request you explicitly initiated. The optional local FFmpeg render remains a caption-card MP4. Review factual claims, visual rights, and generated text before publishing.
+
 ## Safety defaults
 
 - Offline templates by default; no API keys required.
