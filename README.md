@@ -14,7 +14,7 @@ python -m facelessreels.reels generate --topic "A simple productivity lesson" --
 
 Styles: `educational`, `story`, `listicle`. Duration is 15–60 seconds. The output folder must not already exist; this prevents accidental overwrites.
 
-Each output folder contains `script.txt`, `voiceover.txt`, `captions.srt`, `visual_prompts.txt`, and `reel.json`.
+Each output folder contains `script.txt`, `voiceover.txt` (the narration text), `captions.srt`, `visual_prompts.txt`, and `reel.json`.
 
 Optional: render a simple vertical 1080×1920 caption-card MP4 using a locally installed FFmpeg:
 
@@ -24,16 +24,36 @@ python -m facelessreels.reels generate --topic "3 study tips" --render
 
 This uses local FFmpeg only. It does not download tools, use stock footage, synthesize a voice, call external AI services, spend money, or publish to social platforms. This is a simple text-card video, not cinematic footage.
 
+## Optional spoken voiceover
+
+To create a spoken narration track and a second MP4 with audio, install the optional speech dependency. This speech step needs an internet connection and sends the narration text to the Edge TTS service; no API key is required. Review the provider's terms and privacy implications before using sensitive text.
+
+```sh
+python -m pip install -e '.[voiceover]'
+python -m facelessreels.reels generate --topic "3 study tips" --style educational --duration 30 --render
+python -m facelessreels.voiceover --input output/3-study-tips
+```
+
+The voiceover command creates `voiceover.mp3` and `reel_with_voiceover.mp4`. The video retains the existing scene-card text; `captions.srt` is provided as a separate subtitle file. This first version does not add stock footage, animated images, word-by-word subtitles, or automatic publishing. If the narration cannot fit reasonably within the rendered duration, shorten the script or choose a longer video.
+
+You can choose another voice supported by Edge TTS, for example:
+
+```sh
+python -m facelessreels.voiceover --input output/3-study-tips --voice en-US-GuyNeural
+```
+
+Use a new output folder for every generation. The voiceover command writes only inside the selected existing output folder and never publishes the result.
+
 ## Real AI script generation with Google Gemini (explicit opt-in)
 
 Google Gemini is the default provider. Create an API key in [Google AI Studio](https://aistudio.google.com/) and set it locally in Termux. Free usage is subject to Google's model availability, quota limits, account eligibility, and terms; neither a free tier nor an API key is guaranteed to last forever.
 
 ```sh
 export GEMINI_API_KEY='your-gemini-api-key'
-python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30
+python -m facelessreels.reels generate --ai --topic "3 ways to improve study habits" --style educational --duration 30 --render
 ```
 
-The default model is `gemini-3.6-flash`. The Gemini REST API uses the `x-goog-api-key` header and a model-specific `generateContent` endpoint. See Google's [API reference](https://ai.google.dev/api/) and [pricing/free-tier details](https://ai.google.dev/gemini-api/docs/pricing).
+The default model is `gemini-3.6-flash`. The Gemini REST API uses the `x-goog-api-key` header and a model-specific `generateContent` endpoint. See Google's [API reference](https://ai.google.dev/api/) and [pricing/free-tier details](https://ai.google.dev/gemini-api/docs/pricing). AI generation and speech synthesis are separate opt-in steps: run the voiceover command after rendering if you want spoken narration.
 
 NVIDIA NIM remains available as a fallback:
 
@@ -49,11 +69,12 @@ export OPENAI_API_KEY='your-openai-api-key'
 python -m facelessreels.reels generate --ai --provider openai --model gpt-4o-mini --topic "Study habits that work"
 ```
 
-Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; costs depend on the selected provider, model, account, and endpoint. This feature writes AI-generated scripts, captions, scene prompts, and metadata. It does not generate footage or voice audio, publish anything, or trigger other paid services. Review factual claims and rights before publishing.
+Use `FACELESSREELS_AI_PROVIDER`, `FACELESSREELS_AI_MODEL`, and optionally `FACELESSREELS_AI_BASE_URL` to configure defaults. The API is called only when you explicitly pass `--ai`; costs depend on the selected provider, model, account, and endpoint. Review factual claims and rights before publishing.
 
 ## Safety defaults
 
-- Offline templates by default; no API keys required.
+- Offline templates by default; no API keys required for template scripts or silent MP4 rendering.
+- Voiceover is optional and sends narration text to a third-party speech service only when explicitly requested.
 - No automatic paid actions, purchases, cloud rendering, or publishing.
 - Output folder must be new; the generator never overwrites an existing folder.
 - Generated content is a draft and must be reviewed by a human.
@@ -70,6 +91,7 @@ python -m unittest discover -s tests -v
 python -m facelessreels.agent init
 python -m facelessreels.agent status
 python -m facelessreels.reels --help
+python -m facelessreels.voiceover --help
 ```
 
 ## Profit ledger
