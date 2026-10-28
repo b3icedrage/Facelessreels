@@ -5,9 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "facelessreels-ai"
 version = "0.1.0"
-description = "Bounded profit-gated worker lifecycle manager"
+description = "Faceless short-video drafts and bounded worker lifecycle manager"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+voiceover = ["edge-tts>=7.0.0"]
 
 [tool.setuptools]
 packages = ["facelessreels"]
