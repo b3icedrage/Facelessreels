@@ -56,7 +56,7 @@ def generate_episode(idea, duration=240, model=None):
     request = urllib.request.Request(endpoint, data=json.dumps(payload).encode(),
         headers={"Authorization": "Bearer " + key, "Content-Type":"application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
+        with urllib.request.urlopen(request, timeout=300) as response:
             body = json.loads(response.read(2_000_000).decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read(1000).decode("utf-8", errors="replace")
