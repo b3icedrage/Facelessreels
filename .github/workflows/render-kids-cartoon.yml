@@ -80,6 +80,14 @@ jobs:
             --seconds "$RENDER_SECONDS" \
             --output "$OUTPUT_DIR/cartoon_silent.mp4"
 
+      - name: Assemble PNG frames into silent MP4
+        env:
+          RENDER_SECONDS: ${{ inputs.render_seconds }}
+        run: |
+          ffmpeg -y -framerate 12 -i "$OUTPUT_DIR/frame_%04d.png" \
+            -frames:v "$((RENDER_SECONDS * 12))" -c:v libx264 -pix_fmt yuv420p \
+            -movflags +faststart "$OUTPUT_DIR/cartoon_silent.mp4"
+
       - name: Add voiceover and create final MP4
         env:
           RENDER_SECONDS: ${{ inputs.render_seconds }}
