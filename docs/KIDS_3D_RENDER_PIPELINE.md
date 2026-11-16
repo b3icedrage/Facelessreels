@@ -40,4 +40,4 @@ blender --background --python facelessreels/kids_blender_render.py -- \
   --output output/your-episode/cartoon_silent.mp4
 ```
 
-Create narration from the scene dialogue and narration text with eSpeak NG, then mux it with FFmpeg. See `.github/workflows/render-kids-cartoon.yml` for the complete repeatable command sequence.
+The Blender script saves an editable `.blend` file and numbered PNG frames beside the requested output path. It does not directly create the MP4: use FFmpeg to assemble the frames at 12 fps, then add the narration WAV. See `.github/workflows/render-kids-cartoon.yml` for the complete repeatable command sequence.
