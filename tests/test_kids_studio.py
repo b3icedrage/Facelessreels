@@ -37,7 +37,10 @@ class KidsStudioTests(unittest.TestCase):
             }
             self.assertEqual({p.name for p in target.iterdir()}, expected)
             data = json.loads((target / "episode_blueprint.json").read_text(encoding="utf-8"))
-            self.assertEqual(data["duration_seconds"], 210)\n            self.assertEqual(data["generation_mode"], "offline_fallback")\n            self.assertEqual(len(data["characters"]), 2)\n            self.assertTrue((target / "episode_script.md").stat().st_size > 0)
+            self.assertEqual(data["duration_seconds"], 210)
+            self.assertEqual(data["generation_mode"], "offline_fallback")
+            self.assertEqual(len(data["characters"]), 2)
+            self.assertTrue((target / "episode_script.md").stat().st_size > 0)
             with self.assertRaises(ValueError):
                 write_episode("Another story", str(target), 240)
 
