@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 10
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-      FACELESSREELS_NVIDIA_MODEL: ${{ vars.FACELESSREELS_NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct' }}
+      FACELESSREELS_NVIDIA_MODEL: ${{ vars.FACELESSREELS_NVIDIA_MODEL || 'minimaxai/minimax-m3.1-flash' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
