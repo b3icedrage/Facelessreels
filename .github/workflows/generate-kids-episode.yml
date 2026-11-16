@@ -12,6 +12,14 @@ on:
         required: true
         default: "240"
         type: string
+      mode:
+        description: Choose offline-only to avoid all NVIDIA API requests
+        required: true
+        default: offline
+        type: choice
+        options:
+          - offline
+          - nvidia_with_offline_fallback
 
 permissions:
   contents: read
@@ -35,9 +43,10 @@ jobs:
         env:
           EPISODE_IDEA: ${{ inputs.idea }}
           EPISODE_DURATION: ${{ inputs.duration }}
+          GENERATION_MODE: ${{ inputs.mode }}
         run: |
-          if [ -z "$NVIDIA_API_KEY" ]; then
-            echo "::error::Add NVIDIA_API_KEY under Settings > Secrets and variables > Actions."
+          if [ "$GENERATION_MODE" = "nvidia_with_offline_fallback" ] && [ -z "$NVIDIA_API_KEY" ]; then
+            echo "::error::Add NVIDIA_API_KEY under Settings > Secrets and variables > Actions, or select offline mode."
             exit 1
           fi
           python - <<'PY'
@@ -52,8 +61,14 @@ jobs:
         env:
           EPISODE_IDEA: ${{ inputs.idea }}
           EPISODE_DURATION: ${{ inputs.duration }}
+          GENERATION_MODE: ${{ inputs.mode }}
         run: |
-          if python -m facelessreels.kids_studio_ai \
+          if [ "$GENERATION_MODE" = "offline" ]; then
+            echo "Offline-only mode selected; no NVIDIA API request will be made."
+            python -m facelessreels.kids_studio \
+              --idea "$EPISODE_IDEA" \
+              --duration "$EPISODE_DURATION"
+          elif python -m facelessreels.kids_studio_ai \
             --idea "$EPISODE_IDEA" \
             --duration "$EPISODE_DURATION"; then
             echo "NVIDIA script generation succeeded."
