@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-DEFAULT_MODEL = "meta/llama-3.3-70b-instruct"
+DEFAULT_MODEL = "minimaxai/minimax-m3.1-flash"
 
 def clean(value, field, limit):
     if not isinstance(value, str):
