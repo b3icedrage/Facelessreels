@@ -19,7 +19,7 @@ permissions:
 jobs:
   generate-script:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
       FACELESSREELS_NVIDIA_MODEL: ${{ vars.FACELESSREELS_NVIDIA_MODEL || 'minimaxai/minimax-m3.1-flash' }}
