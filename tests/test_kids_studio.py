@@ -32,7 +32,7 @@ class KidsStudioTests(unittest.TestCase):
             target = Path(temp) / "episode"
             write_episode("Two friends find a silly mystery", str(target), 210)
             expected = {
-                "episode_blueprint.json", "story_outline.md", "visual_prompts.md",
+                "episode_blueprint.json", "episode_script.md", "story_outline.md", "visual_prompts.md",
                 "character_bible.md", "youtube_upload_checklist.md",
             }
             self.assertEqual({p.name for p in target.iterdir()}, expected)
