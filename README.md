@@ -2,6 +2,30 @@
 
 A local-first faceless-reel draft generator plus a profit-gated worker lifecycle manager. Offline templates remain available without an API key.
 
+
+## FacelessReels Kids Studio (YouTube-focused profile)
+
+The Kids Studio profile is configured for **original funny 3D adventures for ages 5–8**, in English, with 3–5 minute episodes. The default episode length is 4 minutes. Episodes are planned in 16:9 landscape for standard YouTube viewing.
+
+Create a free, offline episode production blueprint:
+
+```sh
+python -m facelessreels.kids_studio --idea "Two curious animal friends try to return a runaway balloon" --duration 240
+```
+
+The output folder contains:
+- `episode_blueprint.json`: fixed profile, timings, scene beats, and 3D animation/audio direction.
+- `story_outline.md`: a nine-beat adventure structure to expand into a complete script.
+- `character_bible.md`: instructions for defining consistent original recurring characters.
+- `visual_prompts.md`: scene-by-scene 3D animation prompt scaffolds.
+- `youtube_upload_checklist.md`: human review, rights, child-safety, and Made for Kids upload checklist.
+
+This is an **offline planning tool**, not an AI video generator. It does not render 3D scenes, synthesize voices, call an AI API, download assets, upload videos, or spend money. The next production stage must connect a suitable 3D animation/video-generation workflow. A free-first pipeline can use locally installed open-source tools where hardware permits, but full 3D video generation may require substantial GPU resources or a provider's limited free quota. Do not assume that any provider's free tier is unlimited.
+
+For this channel, review each finished video before uploading. Because the cartoons are intended for children, set the audience to **Made for Kids** in YouTube Studio. That setting does not guarantee placement in the YouTube Kids app; YouTube separately curates content for that experience. Follow current YouTube child-safety, quality, copyright, and monetization policies. Uploading remains manual and requires owner approval.
+
+The profile and defaults are stored in `facelessreels/kids_studio_config.json`. The existing general-purpose reel generator remains unchanged.
+
 ## Faceless reel generation
 
 Requires Python 3.11+ and the standard library. Create a draft pack with six timed scenes, narration, SRT captions, visual prompts, and JSON metadata:

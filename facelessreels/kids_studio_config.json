@@ -1,0 +1,39 @@
+{
+  "studio_name": "FacelessReels Kids Studio",
+  "profile": {
+    "audience": "children_ages_5_to_8",
+    "age_range": "5-8",
+    "episode_duration_seconds": {"min": 180, "default": 240, "max": 300},
+    "language": "English",
+    "genre": "funny_adventures",
+    "visual_style": "original_fully_3d_cartoon",
+    "aspect_ratio": "16:9",
+    "publishing_destination": "YouTube",
+    "youtube_audience": "made_for_kids"
+  },
+  "production": {
+    "default_mode": "offline_story_blueprint",
+    "paid_generation_enabled": false,
+    "automatic_upload_enabled": false,
+    "cloud_rendering_enabled": false,
+    "require_human_review": true,
+    "require_rights_review": true
+  },
+  "creative_rules": [
+    "Use original characters and worlds; do not imitate copyrighted characters or studios.",
+    "Keep humour kind, age-appropriate, and easy to understand for ages 5-8.",
+    "Avoid frightening imagery, dangerous imitation, bullying, humiliation, and misleading educational claims.",
+    "Use clear English dialogue, expressive character acting, and a positive resolution.",
+    "Do not use copyrighted songs, characters, logos, or unlicensed sound effects."
+  ],
+  "episode_structure": [
+    "cold_open",
+    "meet_the_heroes",
+    "funny_problem",
+    "adventure_begins",
+    "three_comedic_obstacles",
+    "teamwork_solution",
+    "happy_payoff",
+    "gentle_goodbye"
+  ]
+}
