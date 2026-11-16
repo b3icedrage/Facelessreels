@@ -185,11 +185,11 @@ def build_scene(blueprint, seconds, output):
     scene.render.resolution_y = 480
     scene.render.resolution_percentage = 100
     scene.render.fps = 12
-    scene.render.image_settings.file_format = "FFMPEG"
-    scene.render.ffmpeg.format = "MPEG4"
-    scene.render.ffmpeg.codec = "H264"
-    scene.render.ffmpeg.constant_rate_factor = "MEDIUM"
-    scene.render.filepath = str(Path(output).resolve())
+    # Blender 5 removed FFMPEG from ImageSettings.file_format. Render PNG
+    # frames here; the workflow assembles them with the separately installed FFmpeg.
+    scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGB"
+    scene.render.filepath = str((Path(output).parent / "frame_").resolve())
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "Standard"
 
@@ -230,7 +230,6 @@ def build_scene(blueprint, seconds, output):
     title.location.z = 4.45
     title.keyframe_insert(data_path="location", frame=min(36, scene.frame_end))
 
-    scene.render.image_settings.color_mode = "RGB"
     bpy.ops.wm.save_as_mainfile(filepath=str(Path(output).with_suffix(".blend").resolve()))
     bpy.ops.render.render(animation=True)
 
