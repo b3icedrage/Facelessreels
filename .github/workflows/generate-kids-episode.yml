@@ -53,13 +53,20 @@ jobs:
           EPISODE_IDEA: ${{ inputs.idea }}
           EPISODE_DURATION: ${{ inputs.duration }}
         run: |
-          python -m facelessreels.kids_studio_ai \
+          if python -m facelessreels.kids_studio_ai \
             --idea "$EPISODE_IDEA" \
-            --duration "$EPISODE_DURATION"
+            --duration "$EPISODE_DURATION"; then
+            echo "NVIDIA script generation succeeded."
+          else
+            echo "::warning::NVIDIA generation failed. Creating a local offline script fallback; no second API request will be made."
+            python -m facelessreels.kids_studio \
+              --idea "$EPISODE_IDEA" \
+              --duration "$EPISODE_DURATION"
+          fi
       - name: Save generated episode as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: kids-episode-script
-          path: output/kids-nvidia-*/
+          path: output/kids-*/
           if-no-files-found: error
           retention-days: 7
