@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
             status.setText("Connected to Google. Checking your active YouTube broadcasts...");
             new Thread(()->{
                 try{
-                    String token=GoogleAuthUtil.getToken(this,account,"oauth2:"+YOUTUBE_SCOPE);
+                    String token=GoogleAuthUtil.getToken(this,account.getAccount(),"oauth2:"+YOUTUBE_SCOPE);
                     JSONObject response=YouTubeLiveClient.listMyActiveBroadcasts(token);
                     JSONArray items=response.optJSONArray("items");
                     if(items==null||items.length()==0){
