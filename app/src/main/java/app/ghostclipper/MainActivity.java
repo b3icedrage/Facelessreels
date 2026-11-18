@@ -28,7 +28,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12;
     private Uri source;
     private long durationMs=-1;
-    private File rendered;\n    private String pendingSrt;
+    private File rendered;
+    private String pendingSrt;
     private Transformer transformer;
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
@@ -94,7 +95,8 @@ public class MainActivity extends AppCompatActivity {
     private void pickSource(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VIDEO);}
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
-        else if(req==SAVE_VIDEO)copyTo(data.getData());\n        else if(req==SAVE_SRT)writeSrt(data.getData());
+        else if(req==SAVE_VIDEO)copyTo(data.getData());
+        else if(req==SAVE_SRT)writeSrt(data.getData());
     }
     private void inspectSource(){MediaMetadataRetriever m=new MediaMetadataRetriever();try{m.setDataSource(this,source);String d=m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);durationMs=d==null?-1:Long.parseLong(d);}catch(Exception e){status.setText("Cannot read selected video: "+e.getMessage());}finally{try{m.release();}catch(Exception ignored){}}
         String name=source.getLastPathSegment();sourceLabel.setText(name==null?"Video selected":name);
@@ -169,7 +171,8 @@ public class MainActivity extends AppCompatActivity {
             out.flush();status.setText("AI captions saved as SRT.");
         }catch(Exception e){status.setText("Could not save captions: "+e.getMessage());}
     }
-\n    private void setBusy(boolean busy){export.setEnabled(!busy);cancel.setVisibility(busy?View.VISIBLE:View.GONE);progress.setVisibility(busy?View.VISIBLE:View.GONE);}
+
+    private void setBusy(boolean busy){export.setEnabled(!busy);cancel.setVisibility(busy?View.VISIBLE:View.GONE);progress.setVisibility(busy?View.VISIBLE:View.GONE);}
     private void cancelExport(){if(transformer!=null&&isExporting){transformer.cancel();isExporting=false;setBusy(false);if(rendered!=null)rendered.delete();status.setText("Export cancelled.");}}
     private void saveDialog(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("video/mp4");i.putExtra(Intent.EXTRA_TITLE,"GhostClip_"+System.currentTimeMillis()+".mp4");startActivityForResult(i,SAVE_VIDEO);}
     private void copyTo(Uri dest){if(rendered==null||!rendered.exists()){status.setText("Rendered file not found.");return;}try(InputStream in=new FileInputStream(rendered);OutputStream out=getContentResolver().openOutputStream(dest,"w")){if(out==null)throw new IOException("Cannot open destination");byte[] buf=new byte[65536];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);out.flush();rendered.delete();status.setText("Saved. Your MP4 is ready.");Toast.makeText(this,"Ghost Clipper: saved",Toast.LENGTH_LONG).show();}catch(Exception e){status.setText("Save failed: "+e.getMessage());}}
