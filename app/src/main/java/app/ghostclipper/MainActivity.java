@@ -29,7 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private Uri source;
     private long durationMs=-1;
     private File rendered;
-    private String pendingSrt;\n    private java.util.Map<Long, Double> chatActivity = new java.util.HashMap<>();
+    private String pendingSrt;
+    private java.util.Map<Long, Double> chatActivity = new java.util.HashMap<>();
     private Transformer transformer;
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
@@ -96,7 +97,8 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
         else if(req==SAVE_VIDEO)copyTo(data.getData());
-        else if(req==SAVE_SRT)writeSrt(data.getData());\n        else if(req==PICK_CHAT)loadChatReplay(data.getData());
+        else if(req==SAVE_SRT)writeSrt(data.getData());
+        else if(req==PICK_CHAT)loadChatReplay(data.getData());
     }
     private void inspectSource(){MediaMetadataRetriever m=new MediaMetadataRetriever();try{m.setDataSource(this,source);String d=m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);durationMs=d==null?-1:Long.parseLong(d);}catch(Exception e){status.setText("Cannot read selected video: "+e.getMessage());}finally{try{m.release();}catch(Exception ignored){}}
         String name=source.getLastPathSegment();sourceLabel.setText(name==null?"Video selected":name);
@@ -121,7 +123,18 @@ public class MainActivity extends AppCompatActivity {
         try{transformer.start(edited,rendered.getAbsolutePath());}catch(Exception e){isExporting=false;setBusy(false);status.setText("Could not start render: "+e.getMessage());}
     }
 
-    private void pickChatReplay(){\n        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_CHAT);\n    }\n    private void loadChatReplay(Uri uri){\n        try(InputStream in=getContentResolver().openInputStream(uri)){\n            if(in==null)throw new IOException("Cannot open chat replay");\n            chatActivity=ChatReplayAnalyzer.read(in);\n            status.setText("Chat replay loaded: "+chatActivity.size()+" five-second activity windows. Run highlight detection to combine chat spikes with scene changes.");\n        }catch(Exception e){status.setText("Could not read chat CSV: "+e.getMessage());}\n    }\n\n    private void findHighlights(){
+    private void pickChatReplay(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_CHAT);
+    }
+    private void loadChatReplay(Uri uri){
+        try(InputStream in=getContentResolver().openInputStream(uri)){
+            if(in==null)throw new IOException("Cannot open chat replay");
+            chatActivity=ChatReplayAnalyzer.read(in);
+            status.setText("Chat replay loaded: "+chatActivity.size()+" five-second activity windows. Run highlight detection to combine chat spikes with scene changes.");
+        }catch(Exception e){status.setText("Could not read chat CSV: "+e.getMessage());}
+    }
+
+    private void findHighlights(){
         if(source==null){status.setText("Choose a video first.");return;}
         status.setText(chatActivity.isEmpty()?"Scanning scene changes. This may take a moment...":"Scoring scene changes and chat activity spikes...");
         new Thread(()->{
