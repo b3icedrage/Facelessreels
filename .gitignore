@@ -1,7 +1,7 @@
-__pycache__/
-*.py[cod]
-.venv/
-.env
-data/
-.coverage
-.pytest_cache/
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/build/
+/app/build/
+.DS_Store
