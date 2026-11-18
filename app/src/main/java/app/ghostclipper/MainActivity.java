@@ -19,7 +19,7 @@ import androidx.media3.transformer.EditedMediaItem;
 import androidx.media3.transformer.Effects;
 import androidx.media3.transformer.ExportException;
 import androidx.media3.transformer.ExportResult;
-import androidx.media3.transformer.Presentation;
+import androidx.media3.effect.Presentation;
 import androidx.media3.transformer.Transformer;
 import java.io.*;
 import java.util.Collections;
