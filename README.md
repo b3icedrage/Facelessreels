@@ -7,11 +7,11 @@ Independent local-first Android video clipping app. This is not the original Cli
 - Set exact start/end timestamps and export MP4.
 - Crop exports to portrait 9:16 using AndroidX Media3 Transformer.
 - Optionally remove original audio.
-- **Scene-change highlight suggestions:** samples frames locally, compares colour histograms and ranks up to five non-overlapping candidate windows. This is a visual heuristic, not semantic understanding or chat-aware highlight AI; review suggested ranges before exporting.
+- **Hybrid highlight suggestions:** samples frames locally and scores scene changes; optionally import a Twitch/YouTube chat replay CSV with elapsed timestamps (`timestamp`/`time`/`offset` column, seconds, `MM:SS` or `HH:MM:SS`) to boost moments with high chat activity. Ranks up to five non-overlapping candidate windows. This is a replay-assisted heuristic, not live chat ingestion or semantic AI.
 - **Offline AI speech captions:** downloads the small English Vosk speech model on first use (approximately 40 MB), decodes the video's audio track on-device, and exports word-timed SRT subtitles. Requires internet only for the initial model download; transcription is local. English model only in this release.
 
 ## Not yet implemented
-- Direct Twitch/YouTube live-stream capture, chat ingestion or stream discovery. These require platform APIs, OAuth/API credentials, and platform-compliant access to stream media. This app does not scrape private streams or bypass platform restrictions.
+- Direct Twitch/YouTube live-stream capture, automatic chat API ingestion and stream discovery. The current chat workflow imports a replay CSV exported from a platform-compliant tool; it does not connect directly to platform APIs or capture live streams.
 - Automatic semantic highlight understanding, face tracking or speaker diarization.
 - Burn-in subtitles on the exported MP4 (SRT sidecar export is supported).
 

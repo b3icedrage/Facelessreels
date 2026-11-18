@@ -25,11 +25,11 @@ import java.io.*;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12;
+    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13;
     private Uri source;
     private long durationMs=-1;
     private File rendered;
-    private String pendingSrt;
+    private String pendingSrt;\n    private java.util.Map<Long, Double> chatActivity = new java.util.HashMap<>();
     private Transformer transformer;
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         portrait=new CheckBox(this);portrait.setText("Crop to vertical 9:16 (Shorts / Reels)");portrait.setTextColor(Color.WHITE);portrait.setChecked(true);root.addView(portrait);
         mute=new CheckBox(this);mute.setText("Remove original audio");mute.setTextColor(Color.WHITE);root.addView(mute);
         gap(root,22);
-        root.addView(label("03  RENDER MP4",14,Color.WHITE,true));
+        root.addView(label("04  RENDER MP4",14,Color.WHITE,true));
         export=button("Export clip");root.addView(export);export.setOnClickListener(v->startExport());
         cancel=button("Cancel export");cancel.setVisibility(View.GONE);root.addView(cancel);cancel.setOnClickListener(v->cancelExport());
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setIndeterminate(true);progress.setVisibility(View.GONE);
@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
         else if(req==SAVE_VIDEO)copyTo(data.getData());
-        else if(req==SAVE_SRT)writeSrt(data.getData());
+        else if(req==SAVE_SRT)writeSrt(data.getData());\n        else if(req==PICK_CHAT)loadChatReplay(data.getData());
     }
     private void inspectSource(){MediaMetadataRetriever m=new MediaMetadataRetriever();try{m.setDataSource(this,source);String d=m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);durationMs=d==null?-1:Long.parseLong(d);}catch(Exception e){status.setText("Cannot read selected video: "+e.getMessage());}finally{try{m.release();}catch(Exception ignored){}}
         String name=source.getLastPathSegment();sourceLabel.setText(name==null?"Video selected":name);
@@ -121,12 +121,12 @@ public class MainActivity extends AppCompatActivity {
         try{transformer.start(edited,rendered.getAbsolutePath());}catch(Exception e){isExporting=false;setBusy(false);status.setText("Could not start render: "+e.getMessage());}
     }
 
-    private void findHighlights(){
+    private void pickChatReplay(){\n        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_CHAT);\n    }\n    private void loadChatReplay(Uri uri){\n        try(InputStream in=getContentResolver().openInputStream(uri)){\n            if(in==null)throw new IOException("Cannot open chat replay");\n            chatActivity=ChatReplayAnalyzer.read(in);\n            status.setText("Chat replay loaded: "+chatActivity.size()+" five-second activity windows. Run highlight detection to combine chat spikes with scene changes.");\n        }catch(Exception e){status.setText("Could not read chat CSV: "+e.getMessage());}\n    }\n\n    private void findHighlights(){
         if(source==null){status.setText("Choose a video first.");return;}
-        status.setText("Scanning scene changes. This may take a moment...");
+        status.setText(chatActivity.isEmpty()?"Scanning scene changes. This may take a moment...":"Scoring scene changes and chat activity spikes...");
         new Thread(()->{
             try{
-                java.util.List<HighlightDetector.Moment> moments=HighlightDetector.detect(this,source,durationMs);
+                java.util.List<HighlightDetector.Moment> moments=HighlightDetector.detect(this,source,durationMs,chatActivity);
                 runOnUiThread(()->{
                     if(moments.isEmpty()){status.setText("No clear scene changes found. Try a longer video.");return;}
                     StringBuilder msg=new StringBuilder("Suggested moments: ");
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                     HighlightDetector.Moment best=moments.get(0);
                     startField.setText(String.format(java.util.Locale.US,"%.1f",best.startMs/1000.0));
                     endField.setText(String.format(java.util.Locale.US,"%.1f",best.endMs/1000.0));
-                    status.setText(msg.toString()+" (ranked scene-change suggestions; review before export)");
+                    status.setText(msg.toString()+(chatActivity.isEmpty()?" (scene-change suggestions; review before export)":" (scene + chat-activity ranking; review before export)"));
                 });
             }catch(Exception e){runOnUiThread(()->status.setText("Highlight scan failed: "+e.getMessage()));}
         }).start();
