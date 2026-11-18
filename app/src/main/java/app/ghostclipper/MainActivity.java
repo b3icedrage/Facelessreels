@@ -25,10 +25,10 @@ import java.io.*;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PICK_VIDEO=10, SAVE_VIDEO=11;
+    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12;
     private Uri source;
     private long durationMs=-1;
-    private File rendered;
+    private File rendered;\n    private String pendingSrt;
     private Transformer transformer;
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
@@ -56,8 +56,16 @@ public class MainActivity extends AppCompatActivity {
         choose.setOnClickListener(v->pickSource());
         sourceLabel=label("No video selected",13,Color.LTGRAY,false);gap(root,8);root.addView(sourceLabel);
         durationLabel=label("",12,Color.GRAY,false);root.addView(durationLabel);
-        gap(root,26);
-        root.addView(label("02  CLIP RANGE (SECONDS)",14,Color.WHITE,true));
+        gap(root,18);
+        root.addView(label("02  SMART TOOLS",14,Color.WHITE,true));
+        Button highlights=button("Find highlight moments");
+        root.addView(highlights);
+        highlights.setOnClickListener(v->findHighlights());
+        Button captions=button("Generate AI captions (offline model)");
+        root.addView(captions);
+        captions.setOnClickListener(v->generateCaptions());
+        gap(root,22);
+        root.addView(label("03  CLIP RANGE (SECONDS)",14,Color.WHITE,true));
         LinearLayout row=new LinearLayout(this);row.setOrientation(0);
         startField=numberField("Start","0");endField=numberField("End","30");
         LinearLayout.LayoutParams w=new LinearLayout.LayoutParams(0,dp(54),1);w.rightMargin=dp(6);row.addView(startField,w);
@@ -86,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
     private void pickSource(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VIDEO);}
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
-        else if(req==SAVE_VIDEO)copyTo(data.getData());
+        else if(req==SAVE_VIDEO)copyTo(data.getData());\n        else if(req==SAVE_SRT)writeSrt(data.getData());
     }
     private void inspectSource(){MediaMetadataRetriever m=new MediaMetadataRetriever();try{m.setDataSource(this,source);String d=m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);durationMs=d==null?-1:Long.parseLong(d);}catch(Exception e){status.setText("Cannot read selected video: "+e.getMessage());}finally{try{m.release();}catch(Exception ignored){}}
         String name=source.getLastPathSegment();sourceLabel.setText(name==null?"Video selected":name);
@@ -110,7 +118,58 @@ public class MainActivity extends AppCompatActivity {
         isExporting=true;setBusy(true);status.setText("Rendering on this phone. Keep Ghost Clipper open...");
         try{transformer.start(edited,rendered.getAbsolutePath());}catch(Exception e){isExporting=false;setBusy(false);status.setText("Could not start render: "+e.getMessage());}
     }
-    private void setBusy(boolean busy){export.setEnabled(!busy);cancel.setVisibility(busy?View.VISIBLE:View.GONE);progress.setVisibility(busy?View.VISIBLE:View.GONE);}
+
+    private void findHighlights(){
+        if(source==null){status.setText("Choose a video first.");return;}
+        status.setText("Scanning scene changes. This may take a moment...");
+        new Thread(()->{
+            try{
+                java.util.List<HighlightDetector.Moment> moments=HighlightDetector.detect(this,source,durationMs);
+                runOnUiThread(()->{
+                    if(moments.isEmpty()){status.setText("No clear scene changes found. Try a longer video.");return;}
+                    StringBuilder msg=new StringBuilder("Suggested moments: ");
+                    for(int i=0;i<moments.size();i++){
+                        HighlightDetector.Moment m=moments.get(i);
+                        if(i>0)msg.append("  •  ");
+                        msg.append(String.format(java.util.Locale.US,"%.0f–%.0fs",m.startMs/1000.0,m.endMs/1000.0));
+                    }
+                    HighlightDetector.Moment best=moments.get(0);
+                    startField.setText(String.format(java.util.Locale.US,"%.1f",best.startMs/1000.0));
+                    endField.setText(String.format(java.util.Locale.US,"%.1f",best.endMs/1000.0));
+                    status.setText(msg.toString()+" (ranked scene-change suggestions; review before export)");
+                });
+            }catch(Exception e){runOnUiThread(()->status.setText("Highlight scan failed: "+e.getMessage()));}
+        }).start();
+    }
+
+    private void generateCaptions(){
+        if(source==null){status.setText("Choose a video first.");return;}
+        status.setText("Preparing offline speech model (first run downloads about 40 MB)...");
+        new Thread(()->{
+            try{
+                File modelDir=VoskCaptioner.ensureModel(this);
+                String srt=VoskCaptioner.transcribe(this,source,modelDir);
+                runOnUiThread(()->{
+                    pendingSrt=srt;
+                    Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/x-subrip");
+                    i.putExtra(Intent.EXTRA_TITLE,"GhostClipper_Captions.srt");
+                    status.setText("Transcription complete. Choose where to save the SRT captions.");
+                    startActivityForResult(i,SAVE_SRT);
+                });
+            }catch(Exception e){runOnUiThread(()->status.setText("Caption generation failed: "+e.getMessage()));}
+        }).start();
+    }
+
+    private void writeSrt(Uri destination){
+        if(pendingSrt==null)return;
+        try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
+            if(out==null)throw new IOException("Could not open subtitle destination");
+            out.write(pendingSrt.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            out.flush();status.setText("AI captions saved as SRT.");
+        }catch(Exception e){status.setText("Could not save captions: "+e.getMessage());}
+    }
+\n    private void setBusy(boolean busy){export.setEnabled(!busy);cancel.setVisibility(busy?View.VISIBLE:View.GONE);progress.setVisibility(busy?View.VISIBLE:View.GONE);}
     private void cancelExport(){if(transformer!=null&&isExporting){transformer.cancel();isExporting=false;setBusy(false);if(rendered!=null)rendered.delete();status.setText("Export cancelled.");}}
     private void saveDialog(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("video/mp4");i.putExtra(Intent.EXTRA_TITLE,"GhostClip_"+System.currentTimeMillis()+".mp4");startActivityForResult(i,SAVE_VIDEO);}
     private void copyTo(Uri dest){if(rendered==null||!rendered.exists()){status.setText("Rendered file not found.");return;}try(InputStream in=new FileInputStream(rendered);OutputStream out=getContentResolver().openOutputStream(dest,"w")){if(out==null)throw new IOException("Cannot open destination");byte[] buf=new byte[65536];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);out.flush();rendered.delete();status.setText("Saved. Your MP4 is ready.");Toast.makeText(this,"Ghost Clipper: saved",Toast.LENGTH_LONG).show();}catch(Exception e){status.setText("Save failed: "+e.getMessage());}}

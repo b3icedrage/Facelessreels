@@ -1,37 +1,24 @@
 # Ghost Clipper — Android
 
-Ghost Clipper is an independent Android video clipping app inspired by the workflow of Clipper Engine. It is not the original application and does not contain the original developer's proprietary binaries or source.
+Independent local-first Android video clipping app. This is not the original Clipper Engine app or a copy of its proprietary code.
 
-## Working in this version
-- Native Android app (Java, Android 8+ / API 26+)
-- Pick a local video using Android's document picker
-- Read source duration
-- Set clip start and end times in seconds
-- Trim and render MP4 locally with AndroidX Media3 Transformer
-- Optional portrait 9:16 crop for Shorts, Reels and TikTok
-- Optional removal of source audio
-- Save the finished MP4 to a location selected by the user
-- Cancel an in-progress export
-- GitHub Actions workflow to build a debug APK
+## Features in this build
+- Import local videos using Android's document picker.
+- Set exact start/end timestamps and export MP4.
+- Crop exports to portrait 9:16 using AndroidX Media3 Transformer.
+- Optionally remove original audio.
+- **Scene-change highlight suggestions:** samples frames locally, compares colour histograms and ranks up to five non-overlapping candidate windows. This is a visual heuristic, not semantic understanding or chat-aware highlight AI; review suggested ranges before exporting.
+- **Offline AI speech captions:** downloads the small English Vosk speech model on first use (approximately 40 MB), decodes the video's audio track on-device, and exports word-timed SRT subtitles. Requires internet only for the initial model download; transcription is local. English model only in this release.
 
-## Not yet included
-- Twitch/YouTube live stream discovery or capture
-- Chat-activity highlight detection
-- AI-selected highlights
-- Speech-to-text captions
-- Background batch rendering
-
-These features are not advertised as available in this build. Live-stream capture would also require platform-specific API/permission handling.
+## Not yet implemented
+- Direct Twitch/YouTube live-stream capture, chat ingestion or stream discovery. These require platform APIs, OAuth/API credentials, and platform-compliant access to stream media. This app does not scrape private streams or bypass platform restrictions.
+- Automatic semantic highlight understanding, face tracking or speaker diarization.
+- Burn-in subtitles on the exported MP4 (SRT sidecar export is supported).
 
 ## Build
-Requirements: JDK 17, Android SDK 35, Gradle 8.9.
+JDK 17, Android SDK 35, Gradle 8.9. Android Studio can import this project. Run `gradle assembleDebug`.
 
-Open the repository in Android Studio, sync Gradle, then run `gradle assembleDebug`.
-
-APK output: `app/build/outputs/apk/debug/app-debug.apk`.
-
-## GitHub Actions
-Open Actions → Build Ghost Clipper APK → Run workflow. After the build finishes, download the `ghost-clipper-debug-apk` artifact.
+GitHub Actions builds a debug APK on pushes to `main` and on manual workflow dispatch. Download the `ghost-clipper-debug-apk` artifact from the Actions run.
 
 ## Privacy and cost
-Local video processing runs on the Android device. No account, cloud upload, AI API key or paid service is required for the implemented trimming/export features.
+Video decoding, scene scanning and speech recognition run on-device. No paid API, API key, account or cloud upload is used. The initial Vosk model download uses network data.
