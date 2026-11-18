@@ -11,6 +11,16 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
 import androidx.annotation.Nullable;
+import com.google.android.gms.auth.GoogleAuthUtil;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.Scope;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.time.Instant;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -25,13 +35,18 @@ import java.io.*;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13;
+    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13, CONNECT_YOUTUBE=14;
+    private static final String YOUTUBE_SCOPE="https://www.googleapis.com/auth/youtube.readonly";
     private Uri source;
     private long durationMs=-1;
     private File rendered;
     private String pendingSrt;
     private java.util.Map<Long, Double> chatActivity = new java.util.HashMap<>();
     private Transformer transformer;
+    private volatile boolean liveChatRunning=false;
+    private String youtubeToken, liveChatId, livePageToken;
+    private long liveStartEpochMs=0;
+    private long livePollIntervalMs=5000;
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
     private EditText startField, endField;
@@ -66,6 +81,14 @@ public class MainActivity extends AppCompatActivity {
         Button captions=button("Generate AI captions (offline model)");
         root.addView(captions);
         captions.setOnClickListener(v->generateCaptions());
+        gap(root,18);
+        root.addView(label("YOUTUBE LIVE",14,Color.WHITE,true));
+        Button youtubeConnect=button("Connect my YouTube channel");
+        root.addView(youtubeConnect);
+        youtubeConnect.setOnClickListener(v->connectYoutube());
+        Button youtubeStop=button("Stop live chat capture");
+        root.addView(youtubeStop);
+        youtubeStop.setOnClickListener(v->{liveChatRunning=false;status.setText("YouTube live chat capture stopped. Chat activity is retained for highlight detection.");});
         gap(root,22);
         root.addView(label("03  CLIP RANGE (SECONDS)",14,Color.WHITE,true));
         LinearLayout row=new LinearLayout(this);row.setOrientation(0);
@@ -94,7 +117,9 @@ public class MainActivity extends AppCompatActivity {
     private EditText numberField(String hint,String value){EditText e=new EditText(this);e.setSingleLine(true);e.setText(value);e.setHint(hint);e.setTextColor(Color.WHITE);e.setHintTextColor(Color.GRAY);e.setInputType(8194);e.setPadding(dp(10),0,dp(10),0);e.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(0,217,232)));return e;}
 
     private void pickSource(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VIDEO);}
-    @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
+    @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);
+        if(req==CONNECT_YOUTUBE){if(res==RESULT_OK&&data!=null)finishYoutubeSignIn(data);else status.setText("YouTube connection cancelled.");return;}
+        if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
         else if(req==SAVE_VIDEO)copyTo(data.getData());
         else if(req==SAVE_SRT)writeSrt(data.getData());
@@ -121,6 +146,86 @@ public class MainActivity extends AppCompatActivity {
             }).build();
         isExporting=true;setBusy(true);status.setText("Rendering on this phone. Keep Ghost Clipper open...");
         try{transformer.start(edited,rendered.getAbsolutePath());}catch(Exception e){isExporting=false;setBusy(false);status.setText("Could not start render: "+e.getMessage());}
+    }
+
+
+    private void connectYoutube(){
+        GoogleSignInOptions options=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail().requestScopes(new Scope(YOUTUBE_SCOPE)).build();
+        GoogleSignInClient client=GoogleSignIn.getClient(this,options);
+        status.setText("Opening secure Google sign-in...");
+        startActivityForResult(client.getSignInIntent(),CONNECT_YOUTUBE);
+    }
+
+    private void finishYoutubeSignIn(Intent data){
+        try{
+            GoogleSignInAccount account=GoogleSignIn.getSignedInAccountFromIntent(data).getResult(ApiException.class);
+            status.setText("Connected to Google. Checking your active YouTube broadcasts...");
+            new Thread(()->{
+                try{
+                    String token=GoogleAuthUtil.getToken(this,account,"oauth2:"+YOUTUBE_SCOPE);
+                    JSONObject response=YouTubeLiveClient.listMyActiveBroadcasts(token);
+                    JSONArray items=response.optJSONArray("items");
+                    if(items==null||items.length()==0){
+                        youtubeToken=token;
+                        runOnUiThread(()->status.setText("YouTube connected. No active livestream was found on your channel. Start a livestream, then tap Connect again."));
+                        return;
+                    }
+                    JSONObject broadcast=items.getJSONObject(0);
+                    JSONObject snippet=broadcast.optJSONObject("snippet");
+                    String chatId=snippet==null?null:snippet.optString("liveChatId",null);
+                    String title=snippet==null?"Your livestream":snippet.optString("title","Your livestream");
+                    String actualStart=snippet==null?null:snippet.optString("actualStartTime",null);
+                    long start=System.currentTimeMillis();
+                    if(actualStart!=null&&!actualStart.isEmpty())try{start=Instant.parse(actualStart).toEpochMilli();}catch(Exception ignored){}
+                    youtubeToken=token;liveChatId=chatId;liveStartEpochMs=start;livePageToken=null;
+                    if(chatId==null||chatId.isEmpty()){
+                        runOnUiThread(()->status.setText("Found live broadcast: "+title+". YouTube has not exposed a live chat ID for it."));
+                    }else{
+                        runOnUiThread(()->status.setText("Connected to: "+title+". Capturing live chat activity..."));
+                        startLiveChatCapture();
+                    }
+                }catch(Exception e){runOnUiThread(()->status.setText("YouTube connection failed: "+e.getMessage()));}
+            }).start();
+        }catch(Exception e){status.setText("Google sign-in failed: "+e.getMessage());}
+    }
+
+    private void startLiveChatCapture(){
+        liveChatRunning=false;
+        liveChatRunning=true;
+        new Thread(()->{
+            while(liveChatRunning){
+                try{
+                    JSONObject response=YouTubeLiveClient.listChatMessages(youtubeToken,liveChatId,livePageToken);
+                    String next=response.optString("nextPageToken",null);
+                    if(next!=null&&!next.isEmpty())livePageToken=next;
+                    livePollIntervalMs=Math.max(1000,response.optLong("pollingIntervalMillis",5000));
+                    JSONArray items=response.optJSONArray("items");
+                    int added=0;
+                    if(items!=null)for(int i=0;i<items.length();i++){
+                        JSONObject item=items.optJSONObject(i);
+                        JSONObject snippet=item==null?null:item.optJSONObject("snippet");
+                        if(snippet==null)continue;
+                        String published=snippet.optString("publishedAt","");
+                        long at=System.currentTimeMillis();
+                        try{at=Instant.parse(published).toEpochMilli();}catch(Exception ignored){}
+                        long relative=Math.max(0,at-liveStartEpochMs);
+                        long bin=(relative/5000L)*5000L;
+                        synchronized(chatActivity){Double old=chatActivity.get(bin);chatActivity.put(bin,(old==null?0:old)+1);}
+                        added++;
+                    }
+                    final int count=added;
+                    runOnUiThread(()->status.setText("YouTube live chat captured: "+count+" new messages; "+chatActivity.size()+" five-second activity windows. Tap Find highlight moments after recording."));
+                    Thread.sleep(livePollIntervalMs);
+                }catch(InterruptedException e){Thread.currentThread().interrupt();break;}
+                catch(Exception e){liveChatRunning=false;runOnUiThread(()->status.setText("Live chat capture stopped: "+e.getMessage()));}
+            }
+        },"GhostClip-YouTubeChat").start();
+    }
+
+    @Override protected void onDestroy(){
+        liveChatRunning=false;
+        super.onDestroy();
     }
 
     private void pickChatReplay(){
