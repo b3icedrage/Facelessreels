@@ -297,7 +297,7 @@ public class MainActivity extends AppCompatActivity {
                     if(spike!=null){
                         Intent clipSignal=new Intent(this,LiveScreenRecorderService.class);
                         clipSignal.setAction(LiveScreenRecorderService.ACTION_SPIKE);
-                        startService(clipSignal);
+                        if(android.os.Build.VERSION.SDK_INT>=26)startForegroundService(clipSignal);else startService(clipSignal);
                         long relative=Math.max(0,spike.timestampMs-liveStartEpochMs);
                         long bin=(relative/5000L)*5000L;
                         synchronized(chatActivity){chatActivity.put(bin,Math.max(chatActivity.containsKey(bin)?chatActivity.get(bin):0,spike.recentMessages));}
