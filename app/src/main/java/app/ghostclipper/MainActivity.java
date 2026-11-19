@@ -3,6 +3,9 @@ package app.ghostclipper;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ContentValues;
+import android.provider.MediaStore;
+import android.os.Environment;
 import android.net.Uri;
 import android.os.Bundle;
 import android.media.MediaMetadataRetriever;
@@ -174,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
         EditedMediaItem edited=new EditedMediaItem.Builder(item).setEffects(effects).setRemoveAudio(mute.isChecked()).build();
         transformer=new Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(new Transformer.Listener(){
-                @Override public void onCompleted(Composition c,ExportResult r){isExporting=false;setBusy(false);status.setText("Render complete. Choose where to save the MP4.");saveDialog();}
+                @Override public void onCompleted(Composition c,ExportResult r){isExporting=false;setBusy(false);status.setText("Render complete. Saving MP4 to Downloads...");saveRenderedToDownloads();}
                 @Override public void onError(Composition c,ExportResult r,ExportException e){isExporting=false;setBusy(false);status.setText("Export failed: "+e.getMessage());}
             }).build();
         isExporting=true;setBusy(true);status.setText("Rendering on this phone. Keep Ghost Clipper open...");
@@ -339,8 +342,8 @@ public class MainActivity extends AppCompatActivity {
                 if(files!=null&&!files.isEmpty()){
                     rendered=new File(files.get(0));
                     if(rendered.exists()&&rendered.getName().endsWith(".mp4")){
-                        status.setText("Automatic highlight ready. Choose where to save it.");
-                        saveDialog();
+                        status.setText("Automatic highlight ready. Saving to Downloads...");
+                        saveRenderedToDownloads();
                     }
                 }
             }
@@ -421,5 +424,38 @@ public class MainActivity extends AppCompatActivity {
     private void setBusy(boolean busy){export.setEnabled(!busy);cancel.setVisibility(busy?View.VISIBLE:View.GONE);progress.setVisibility(busy?View.VISIBLE:View.GONE);}
     private void cancelExport(){if(transformer!=null&&isExporting){transformer.cancel();isExporting=false;setBusy(false);if(rendered!=null)rendered.delete();status.setText("Export cancelled.");}}
     private void saveDialog(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("video/mp4");i.putExtra(Intent.EXTRA_TITLE,"GhostClip_"+System.currentTimeMillis()+".mp4");startActivityForResult(i,SAVE_VIDEO);}
+    private void saveRenderedToDownloads(){
+        final File input=rendered;
+        if(input==null||!input.exists()){status.setText("Clip file was not found; it could not be saved.");return;}
+        new Thread(()->{
+            Uri destination=null;
+            try{
+                if(android.os.Build.VERSION.SDK_INT>=29){
+                    ContentValues values=new ContentValues();
+                    values.put(MediaStore.MediaColumns.DISPLAY_NAME,"GhostClip_"+System.currentTimeMillis()+".mp4");
+                    values.put(MediaStore.MediaColumns.MIME_TYPE,"video/mp4");
+                    values.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/Ghost Clipper");
+                    values.put(MediaStore.MediaColumns.IS_PENDING,1);
+                    destination=getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);
+                    if(destination==null)throw new IOException("Android could not create a file in Downloads.");
+                    try(InputStream in=new FileInputStream(input);OutputStream out=getContentResolver().openOutputStream(destination,"w")){
+                        if(out==null)throw new IOException("Android could not open the Downloads file.");
+                        byte[] buffer=new byte[65536];int count;
+                        while((count=in.read(buffer))!=-1)out.write(buffer,0,count);
+                        out.flush();
+                    }
+                    ContentValues ready=new ContentValues();ready.put(MediaStore.MediaColumns.IS_PENDING,0);
+                    getContentResolver().update(destination,ready,null,null);
+                }else{
+                    throw new IOException("Automatic Downloads saving requires Android 10 or newer.");
+                }
+                input.delete();
+                runOnUiThread(()->{status.setText("Saved automatically: Downloads/Ghost Clipper/"+input.getName());Toast.makeText(this,"Ghost Clipper: clip saved in Downloads",Toast.LENGTH_LONG).show();});
+            }catch(Exception e){
+                if(destination!=null)try{getContentResolver().delete(destination,null,null);}catch(Exception ignored){}
+                runOnUiThread(()->status.setText("Could not save to Downloads: "+e.getMessage()));
+            }
+        },"GhostClip-SaveDownload").start();
+    }
     private void copyTo(Uri dest){if(rendered==null||!rendered.exists()){status.setText("Rendered file not found.");return;}try(InputStream in=new FileInputStream(rendered);OutputStream out=getContentResolver().openOutputStream(dest,"w")){if(out==null)throw new IOException("Cannot open destination");byte[] buf=new byte[65536];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);out.flush();rendered.delete();status.setText("Saved. Your MP4 is ready.");Toast.makeText(this,"Ghost Clipper: saved",Toast.LENGTH_LONG).show();}catch(Exception e){status.setText("Save failed: "+e.getMessage());}}
 }
