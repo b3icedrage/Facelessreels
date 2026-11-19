@@ -1,5 +1,6 @@
 package app.ghostclipper;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -14,8 +15,29 @@ public final class YouTubeLiveClient {
     private static final String API="https://www.googleapis.com/youtube/v3/";
     private YouTubeLiveClient(){}
 
+    /**
+     * Lists broadcasts owned by the authenticated channel, then filters the
+     * response locally. YouTube rejects requests that combine mine=true with
+     * broadcastStatus, so these filters must not be sent together.
+     */
     public static JSONObject listMyActiveBroadcasts(String token) throws Exception {
-        return get("liveBroadcasts?part=id%2Csnippet&broadcastStatus=active&mine=true&maxResults=10",token);
+        JSONObject response=get("liveBroadcasts?part=id%2Csnippet%2Cstatus&mine=true&maxResults=50",token);
+        JSONArray items=response.optJSONArray("items");
+        JSONArray active=new JSONArray();
+        if(items!=null){
+            for(int i=0;i<items.length();i++){
+                JSONObject item=items.optJSONObject(i);
+                if(item==null)continue;
+                JSONObject status=item.optJSONObject("status");
+                String lifecycle=status==null?"":status.optString("lifeCycleStatus","");
+                if("live".equals(lifecycle)||"liveStarting".equals(lifecycle)
+                        ||"testing".equals(lifecycle)||"testStarting".equals(lifecycle)){
+                    active.put(item);
+                }
+            }
+        }
+        response.put("items",active);
+        return response;
     }
 
     public static JSONObject listChatMessages(String token,String chatId,String pageToken) throws Exception {
