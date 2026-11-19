@@ -20,6 +20,7 @@ import java.util.ArrayList;
  * preceding segments and records a short post-roll before publishing the clip parts.
  */
 public final class LiveScreenRecorderService extends Service {
+    public static volatile boolean isActive=false;
     public static final String ACTION_START="app.ghostclipper.RECORD_START";
     public static final String ACTION_SPIKE="app.ghostclipper.RECORD_SPIKE";
     public static final String ACTION_STOP="app.ghostclipper.RECORD_STOP";
@@ -47,6 +48,7 @@ public final class LiveScreenRecorderService extends Service {
         if(intent==null)return START_NOT_STICKY;
         String action=intent.getAction();
         if(ACTION_START.equals(action)){
+            isActive=true;
             int code=intent.getIntExtra(EXTRA_RESULT_CODE,Activity.RESULT_CANCELED);
             Intent data=intent.getParcelableExtra(EXTRA_DATA);
             if(Build.VERSION.SDK_INT>=29)startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);else startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"));
@@ -97,7 +99,7 @@ public final class LiveScreenRecorderService extends Service {
         if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}try{recorder.reset();recorder.release();}catch(Exception ignored){}recorder=null;}
     }
     private void finishCapture(){
-        if(finishing)return;finishing=true;recording=false;handler.removeCallbacks(rotateTask);handler.removeCallbacks(finishTask);
+        if(finishing)return;finishing=true;recording=false;isActive=false;handler.removeCallbacks(rotateTask);handler.removeCallbacks(finishTask);
         File last=currentFile;
         if(display!=null){try{display.setSurface(null);display.release();}catch(Exception ignored){}display=null;}
         stopRecorderOnly();
