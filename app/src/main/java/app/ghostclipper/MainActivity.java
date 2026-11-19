@@ -41,6 +41,7 @@ import androidx.media3.transformer.Effects;
 import androidx.media3.transformer.ExportException;
 import androidx.media3.transformer.ExportResult;
 import androidx.media3.effect.Presentation;
+import androidx.media3.effect.Crop;
 import androidx.media3.transformer.Transformer;
 import java.io.*;
 import java.util.Collections;
@@ -398,6 +399,56 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(manager.createScreenCaptureIntent(),CAPTURE_SCREEN);
     }
 
+
+    /**
+     * MediaProjection records the display. Crop the finished spike to the
+     * visible WebView player rectangle before saving it.
+     */
+    private void cropSpikeToPlayer(File input){
+        if(livePlayer==null||livePlayer.getVisibility()!=View.VISIBLE||livePlayer.getWidth()<2||livePlayer.getHeight()<2){
+            status.setText("Spike captured, but the live player is not visible. Keep the player open to crop highlights.");
+            return;
+        }
+        int[] location=new int[2];
+        livePlayer.getLocationOnScreen(location);
+        android.util.DisplayMetrics dm=new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+        float left=Math.max(-1f,Math.min(1f,2f*location[0]/dm.widthPixels-1f));
+        float right=Math.max(-1f,Math.min(1f,2f*(location[0]+livePlayer.getWidth())/dm.widthPixels-1f));
+        float top=Math.max(-1f,Math.min(1f,1f-2f*location[1]/dm.heightPixels));
+        float bottom=Math.max(-1f,Math.min(1f,1f-2f*(location[1]+livePlayer.getHeight())/dm.heightPixels));
+        if(right-left<0.02f||top-bottom<0.02f){
+            status.setText("Could not determine the livestream player crop area.");
+            return;
+        }
+        File cropped=new File(getCacheDir(),"ghost_spike_crop_"+System.currentTimeMillis()+".mp4");
+        try{
+            Crop crop=new Crop(left,right,bottom,top);
+            Effects effects=new Effects(Collections.emptyList(),Collections.singletonList(crop));
+            EditedMediaItem item=new EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(input))).setEffects(effects).build();
+            transformer=new Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264)
+                .addListener(new Transformer.Listener(){
+                    @Override public void onCompleted(Composition composition,ExportResult result){
+                        if(!cropped.exists()||cropped.length()==0){
+                            status.setText("Player crop produced an empty video.");
+                            return;
+                        }
+                        input.delete();
+                        rendered=cropped;
+                        status.setText("Livestream spike cropped to the player. Saving to Downloads...");
+                        saveRenderedToDownloads();
+                    }
+                    @Override public void onError(Composition composition,ExportResult result,ExportException error){
+                        status.setText("Player crop failed: "+error.getMessage()+" • Original spike retained in app storage.");
+                    }
+                }).build();
+            status.setText("Chat spike detected. Cropping the livestream player...");
+            transformer.start(item,cropped.getAbsolutePath());
+        }catch(Exception e){
+            status.setText("Could not crop spike to player: "+e.getMessage());
+        }
+    }
+
     private void registerRecorderReceiver(){
         recorderReceiver=new android.content.BroadcastReceiver(){
             @Override public void onReceive(android.content.Context context,Intent intent){
@@ -405,10 +456,9 @@ public class MainActivity extends AppCompatActivity {
                 java.util.ArrayList<String> files=intent.getStringArrayListExtra(LiveScreenRecorderService.EXTRA_FILES);
                 if(message!=null)status.setText(message);
                 if(files!=null&&!files.isEmpty()){
-                    rendered=new File(files.get(0));
-                    if(rendered.exists()&&rendered.getName().endsWith(".mp4")){
-                        status.setText("Automatic highlight ready. Saving to Downloads...");
-                        saveRenderedToDownloads();
+                    File spikeFile=new File(files.get(0));
+                    if(spikeFile.exists()&&spikeFile.getName().endsWith(".mp4")){
+                        cropSpikeToPlayer(spikeFile);
                     }
                 }
             }
