@@ -14,6 +14,13 @@ import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import androidx.annotation.Nullable;
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -56,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
     private LinearLayout liveStreamsContainer;
+    private WebView livePlayer;
     private EditText startField, endField;
     private CheckBox portrait, mute;
     private Button export, cancel;
@@ -97,6 +105,18 @@ public class MainActivity extends AppCompatActivity {
         Button bufferButton=button("Enable rolling video buffer (screen capture)");
         root.addView(bufferButton);
         bufferButton.setOnClickListener(v->requestScreenCapture());
+        root.addView(label("LIVE VIDEO PLAYER",12,Color.rgb(198,255,0),true));
+        livePlayer=new WebView(this);
+        livePlayer.setBackgroundColor(Color.BLACK);
+        livePlayer.setVisibility(View.GONE);
+        WebSettings playerSettings=livePlayer.getSettings();
+        playerSettings.setJavaScriptEnabled(true);
+        playerSettings.setDomStorageEnabled(true);
+        playerSettings.setMediaPlaybackRequiresUserGesture(false);
+        livePlayer.setWebChromeClient(new WebChromeClient());
+        LinearLayout.LayoutParams playerSize=new LinearLayout.LayoutParams(-1,dp(220));
+        playerSize.topMargin=dp(8);
+        root.addView(livePlayer,playerSize);
         Button youtubeFind=button("Show all live YouTube streams");
         root.addView(youtubeFind);
         youtubeFind.setOnClickListener(v->findSubscribedLiveStreams());
@@ -238,8 +258,28 @@ public class MainActivity extends AppCompatActivity {
                             if(videoId.isEmpty())continue;
                             String title=snippet.optString("title","GTA 6 livestream");
                             String channel=snippet.optString("channelTitle","YouTube channel");
+                            LinearLayout streamCard=new LinearLayout(this);
+                            streamCard.setOrientation(LinearLayout.HORIZONTAL);
+                            streamCard.setGravity(Gravity.CENTER_VERTICAL);
+                            streamCard.setPadding(dp(6),dp(6),dp(6),dp(6));
+                            streamCard.setBackgroundColor(Color.rgb(20,28,36));
+                            LinearLayout.LayoutParams cardParams=new LinearLayout.LayoutParams(-1,dp(92));
+                            cardParams.topMargin=dp(8);
+                            liveStreamsContainer.addView(streamCard,cardParams);
+                            ImageView thumbnail=new ImageView(this);
+                            thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                            LinearLayout.LayoutParams thumbParams=new LinearLayout.LayoutParams(dp(128),dp(76));
+                            streamCard.addView(thumbnail,thumbParams);
+                            JSONObject thumbs=snippet.optJSONObject("thumbnails");
+                            JSONObject thumb=thumbs==null?null:thumbs.optJSONObject("medium");
+                            if(thumb==null&&thumbs!=null)thumb=thumbs.optJSONObject("high");
+                            String thumbUrl=thumb==null?"":thumb.optString("url","");
+                            if(!thumbUrl.isEmpty())loadLiveThumbnail(thumbnail,thumbUrl);
                             Button stream=button(title+"  •  "+channel);
-                            liveStreamsContainer.addView(stream);
+                            LinearLayout.LayoutParams streamParams=new LinearLayout.LayoutParams(0,dp(76),1);
+                            streamParams.leftMargin=dp(8);
+                            stream.setLayoutParams(streamParams);
+                            streamCard.addView(stream);
                             stream.setOnClickListener(v->{
                                 stream.setEnabled(false);
                                 status.setText("Connecting to live chat for: "+title);
@@ -257,6 +297,7 @@ public class MainActivity extends AppCompatActivity {
                                         runOnUiThread(()->{
                                             stream.setEnabled(true);
                                             stream.setText("MONITORING CHAT  •  "+title);
+                                            showLivePlayer(videoId);
                                             startLiveChatCapture();
                                             status.setText("Monitoring chat for “"+title+"”. Keep Ghost Clipper open; chat spikes will be detected automatically.");
                                             try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://www.youtube.com/watch?v="+videoId)));}
@@ -273,6 +314,30 @@ public class MainActivity extends AppCompatActivity {
                 });
             }catch(Exception e){runOnUiThread(()->status.setText("Could not load live YouTube streams: "+e.getMessage()));}
         },"GhostClip-YouTubeDiscovery").start();
+    }
+
+    private void showLivePlayer(String videoId){
+        if(livePlayer==null)return;
+        livePlayer.setVisibility(View.VISIBLE);
+        String html="<!doctype html><html><body style='margin:0;background:#000'><iframe width='100%' height='100%' src='https://www.youtube-nocookie.com/embed/"+videoId+"?autoplay=1&playsinline=1&rel=0' title='YouTube live stream' frameborder='0' allow='autoplay; encrypted-media; picture-in-picture' allowfullscreen></iframe></body></html>";
+        livePlayer.loadDataWithBaseURL("https://www.youtube-nocookie.com",html,"text/html","UTF-8",null);
+    }
+
+    private void loadLiveThumbnail(ImageView target,String imageUrl){
+        new Thread(()->{
+            HttpURLConnection connection=null;
+            try{
+                connection=(HttpURLConnection)new URL(imageUrl).openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(15000);
+                connection.setInstanceFollowRedirects(true);
+                try(InputStream in=connection.getInputStream()){
+                    Bitmap bitmap=BitmapFactory.decodeStream(in);
+                    if(bitmap!=null)runOnUiThread(()->target.setImageBitmap(bitmap));
+                }
+            }catch(Exception ignored){
+            }finally{if(connection!=null)connection.disconnect();}
+        },"GhostClip-Thumbnail").start();
     }
 
     private void startLiveChatCapture(){
