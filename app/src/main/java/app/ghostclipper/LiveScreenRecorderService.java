@@ -80,7 +80,8 @@ public final class LiveScreenRecorderService extends Service {
             recorder.setVideoFrameRate(30);
             recorder.setVideoEncodingBitRate(4500000);
             recorder.prepare();
-            display=projection.createVirtualDisplay("GhostClipperBuffer",width,height,density,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,recorder.getSurface(),null,handler);
+            if(display==null)display=projection.createVirtualDisplay("GhostClipperBuffer",width,height,density,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,recorder.getSurface(),null,handler);
+            else display.setSurface(recorder.getSurface());
             recorder.start();
             handler.removeCallbacks(rotateTask);handler.postDelayed(rotateTask,SEGMENT_MS);
             broadcast("Video buffer active • retaining up to 60 seconds",null);
@@ -93,12 +94,13 @@ public final class LiveScreenRecorderService extends Service {
         startSegment();
     }
     private void stopRecorderOnly(){
-        if(display!=null){display.release();display=null;}
         if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}try{recorder.reset();recorder.release();}catch(Exception ignored){}recorder=null;}
     }
     private void finishCapture(){
         if(finishing)return;finishing=true;recording=false;handler.removeCallbacks(rotateTask);handler.removeCallbacks(finishTask);
-        File last=currentFile;stopRecorderOnly();
+        File last=currentFile;
+        if(display!=null){try{display.setSurface(null);display.release();}catch(Exception ignored){}display=null;}
+        stopRecorderOnly();
         if(last!=null&&last.exists()&&last.length()>0)ring.addLast(last);
         if(projection!=null){try{projection.stop();}catch(Exception ignored){}projection=null;}
         if(triggered){
