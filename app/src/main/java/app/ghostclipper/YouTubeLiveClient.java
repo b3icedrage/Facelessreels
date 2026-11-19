@@ -41,54 +41,32 @@ public final class YouTubeLiveClient {
     }
 
     /**
-     * Finds currently live GTA 6 videos and keeps only channels the signed-in
-     * user subscribes to. This is a discovery operation, not a broadcast lookup
-     * on the user's own channel.
+     * Lists public videos that are currently live. No channel, title,
+     * description, or subscription filtering is applied. Fetch every page
+     * exposed by YouTube's search API so the user can choose a stream.
      */
-    public static JSONObject listSubscribedLiveGta6Streams(String token) throws Exception {
-        java.util.HashSet<String> subscribed = new java.util.HashSet<>();
+    public static JSONObject listAllLiveStreams(String token) throws Exception {
+        JSONArray all = new JSONArray();
         String page = null;
         int pages = 0;
         do {
-            String path = "subscriptions?part=snippet&mine=true&maxResults=50";
+            String path = "search?part=snippet&type=video&eventType=live&order=relevance&maxResults=50";
             if (page != null && !page.isEmpty()) path += "&pageToken=" + enc(page);
             JSONObject response = get(path, token);
             JSONArray items = response.optJSONArray("items");
             if (items != null) {
                 for (int i = 0; i < items.length(); i++) {
                     JSONObject item = items.optJSONObject(i);
-                    JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
-                    JSONObject resource = snippet == null ? null : snippet.optJSONObject("resourceId");
-                    if (resource != null) {
-                        String channelId = resource.optString("channelId", "");
-                        if (!channelId.isEmpty()) subscribed.add(channelId);
-                    }
+                    if (item != null) all.put(item);
                 }
             }
             page = response.optString("nextPageToken", null);
             pages++;
-        } while (page != null && !page.isEmpty() && pages < 20);
+        } while (page != null && !page.isEmpty());
 
-        JSONObject search = get("search?part=snippet&type=video&eventType=live&order=relevance&maxResults=50&q=" + enc("GTA 6"), token);
-        JSONArray found = search.optJSONArray("items");
-        JSONArray matches = new JSONArray();
-        if (found != null) {
-            for (int i = 0; i < found.length(); i++) {
-                JSONObject item = found.optJSONObject(i);
-                JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
-                if (snippet == null) continue;
-                String channelId = snippet.optString("channelId", "");
-                String description = snippet.optString("description", "");
-                String searchableDescription = description.toLowerCase(java.util.Locale.ROOT);
-                if (subscribed.contains(channelId) && (searchableDescription.contains("gta 6") || searchableDescription.contains("gta vi"))) {
-                    matches.put(item);
-                }
-            }
-        }
         JSONObject result = new JSONObject();
-        result.put("items", matches);
-        result.put("subscriptionsChecked", subscribed.size());
-        result.put("subscriptionPagesRead", pages);
+        result.put("items", all);
+        result.put("pagesRead", pages);
         return result;
     }
 
