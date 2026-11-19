@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void pickSource(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VIDEO);}
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);
-        if(req==CONNECT_YOUTUBE){if(res==RESULT_OK&&data!=null)finishYoutubeSignIn(data);else status.setText("YouTube connection cancelled.");return;}
+        if(req==CONNECT_YOUTUBE){if(data!=null)finishYoutubeSignIn(data);else status.setText("Google sign-in returned no account data (result code "+res+"). Check the Android OAuth client package name and SHA-1 fingerprint in Google Cloud.");return;}
         if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
         else if(req==SAVE_VIDEO)copyTo(data.getData());
@@ -187,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }catch(Exception e){runOnUiThread(()->status.setText("YouTube connection failed: "+e.getMessage()));}
             }).start();
-        }catch(Exception e){status.setText("Google sign-in failed: "+e.getMessage());}
+        }catch(Exception e){if(e instanceof ApiException){ApiException api=(ApiException)e;status.setText("Google sign-in error "+api.getStatusCode()+": "+api.getStatus().getStatusMessage()+". Check the Android OAuth client configuration.");}else{status.setText("Google sign-in failed: "+e.getClass().getSimpleName()+": "+e.getMessage());}}
     }
 
     private void startLiveChatCapture(){
