@@ -78,10 +78,9 @@ public final class YouTubeLiveClient {
                 JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
                 if (snippet == null) continue;
                 String channelId = snippet.optString("channelId", "");
-                String title = snippet.optString("title", "");
                 String description = snippet.optString("description", "");
-                String searchable = (title + " " + description).toLowerCase(java.util.Locale.ROOT);
-                if (subscribed.contains(channelId) && (searchable.contains("gta 6") || searchable.contains("gta vi"))) {
+                String searchableDescription = description.toLowerCase(java.util.Locale.ROOT);
+                if (subscribed.contains(channelId) && (searchableDescription.contains("gta 6") || searchableDescription.contains("gta vi"))) {
                     matches.put(item);
                 }
             }
