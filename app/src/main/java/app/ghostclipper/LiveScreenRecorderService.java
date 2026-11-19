@@ -49,7 +49,7 @@ public final class LiveScreenRecorderService extends Service {
         if(ACTION_START.equals(action)){
             int code=intent.getIntExtra(EXTRA_RESULT_CODE,Activity.RESULT_CANCELED);
             Intent data=intent.getParcelableExtra(EXTRA_DATA);
-            startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+            if(Build.VERSION.SDK_INT>=29)startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);else startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"));
             try{beginProjection(code,data);}catch(Exception e){broadcast("Could not start screen recording: "+e.getMessage(),null);stopSelf();}
         }else if(ACTION_SPIKE.equals(action)){
             if(recording&&!triggered){triggered=true;handler.removeCallbacks(rotateTask);broadcast("Chat spike detected. Saving the previous 45 seconds and 10 seconds after the spike.",null);handler.postDelayed(finishTask,POST_ROLL_MS);}
@@ -103,9 +103,18 @@ public final class LiveScreenRecorderService extends Service {
         if(projection!=null){try{projection.stop();}catch(Exception ignored){}projection=null;}
         if(triggered){
             ArrayList<String> paths=new ArrayList<>();for(File f:ring)if(f.exists()&&f.length()>0)paths.add(f.getAbsolutePath());
-            broadcast(paths.isEmpty()?"No usable video segments were captured.":"Highlight footage captured in "+paths.size()+" MP4 segment(s).",paths);
-        }else{broadcast("Screen recording buffer stopped.",null);}
-        stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();
+            if(paths.isEmpty()){broadcast("No usable video segments were captured.",null);stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();return;}
+            new Thread(()->{
+                try{
+                    File out=new File(getExternalFilesDir(null),"GhostClip_"+System.currentTimeMillis()+".mp4");
+                    Mp4SegmentMerger.merge(paths,out);
+                    for(String p:paths)new File(p).delete();
+                    ArrayList<String> result=new ArrayList<>();result.add(out.getAbsolutePath());
+                    broadcast("Highlight MP4 ready: "+out.getAbsolutePath(),result);
+                }catch(Exception e){broadcast("Could not assemble highlight MP4: "+e.getMessage(),paths);}
+                stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();
+            },"GhostClip-Merge").start();
+        }else{broadcast("Screen recording buffer stopped.",null);stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}
     }
     private void broadcast(String message,ArrayList<String> files){
         Intent i=new Intent(BROADCAST);i.setPackage(getPackageName());i.putExtra(EXTRA_MESSAGE,message);if(files!=null)i.putStringArrayListExtra(EXTRA_FILES,files);sendBroadcast(i);
