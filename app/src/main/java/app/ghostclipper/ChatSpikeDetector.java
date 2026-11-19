@@ -14,9 +14,11 @@ public final class ChatSpikeDetector {
     }
     private final ArrayDeque<Long> arrivals=new ArrayDeque<>();
     private long lastTriggerMs=0;
+    private long firstSeenMs=0;
 
     public synchronized Spike add(long timestampMs,int count) {
         if(count<=0)return null;
+        if(firstSeenMs==0)firstSeenMs=timestampMs;
         for(int i=0;i<count;i++)arrivals.addLast(timestampMs);
         long cutoff=timestampMs-90000L;
         while(!arrivals.isEmpty()&&arrivals.peekFirst()<cutoff)arrivals.removeFirst();
@@ -31,10 +33,10 @@ public final class ChatSpikeDetector {
         double threshold=Math.max(8.0,baselinePer10*3.0);
         if(recent<threshold||timestampMs-lastTriggerMs<30000L)return null;
         // Avoid a false positive during the first few seconds: require a meaningful burst.
-        if(timestampMs<60000L&&recent<12)return null;
+        if(timestampMs-firstSeenMs<60000L&&recent<12)return null;
         lastTriggerMs=timestampMs;
         return new Spike(timestampMs,recent,baselinePer10,baselinePer10<=0?recent:recent/baselinePer10);
     }
 
-    public synchronized void reset(){arrivals.clear();lastTriggerMs=0;}
+    public synchronized void reset(){arrivals.clear();lastTriggerMs=0;firstSeenMs=0;}
 }
