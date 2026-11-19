@@ -70,6 +70,23 @@ public final class YouTubeLiveClient {
         return result;
     }
 
+    /** Resolves the active live chat ID for a selected public live video. */
+    public static JSONObject getLiveChatDetails(String token,String videoId) throws Exception {
+        JSONObject response=get("videos?part=snippet%2CliveStreamingDetails&id="+enc(videoId),token);
+        JSONArray items=response.optJSONArray("items");
+        if(items==null||items.length()==0)throw new java.io.IOException("YouTube could not find details for this live stream.");
+        JSONObject video=items.optJSONObject(0);
+        JSONObject details=video==null?null:video.optJSONObject("liveStreamingDetails");
+        if(details==null)throw new java.io.IOException("This stream has no live chat details.");
+        String chatId=details.optString("activeLiveChatId","");
+        if(chatId.isEmpty())throw new java.io.IOException("Live chat is disabled or unavailable for this stream.");
+        JSONObject result=new JSONObject();
+        result.put("activeLiveChatId",chatId);
+        result.put("actualStartTime",details.optString("actualStartTime",""));
+        result.put("title",video.optJSONObject("snippet")==null?"Live stream":video.optJSONObject("snippet").optString("title","Live stream"));
+        return result;
+    }
+
     public static JSONObject listChatMessages(String token,String chatId,String pageToken) throws Exception {
         String path="liveChat/messages?part=id%2Csnippet&liveChatId="+enc(chatId)+"&maxResults=2000";
         if(pageToken!=null&&!pageToken.isEmpty())path+="&pageToken="+enc(pageToken);
