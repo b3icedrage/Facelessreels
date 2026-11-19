@@ -48,6 +48,8 @@ import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
     private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13, CONNECT_YOUTUBE=14, CAPTURE_SCREEN=15;
+    private static final String RELAY_URL="https://ghost-clipper-relay.kipkiruibrian102198.workers.dev";
+    private static final String RELAY_PREFS="ghost_relay";
     private static final String YOUTUBE_SCOPE="https://www.googleapis.com/auth/youtube.readonly";
     private Uri source;
     private long durationMs=-1;
@@ -72,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private android.content.BroadcastReceiver recorderReceiver;
 
     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
-    @Override public void onCreate(@Nullable Bundle state){super.onCreate(state); buildUi(); registerRecorderReceiver();}
+    @Override public void onCreate(@Nullable Bundle state){super.onCreate(state); buildUi(); registerRecorderReceiver(); reconnectGhostRelay();}
 
     private void buildUi(){
         ScrollView scroll=new ScrollView(this);
@@ -124,6 +126,9 @@ public class MainActivity extends AppCompatActivity {
         liveStreamsContainer=new LinearLayout(this);
         liveStreamsContainer.setOrientation(1);
         root.addView(liveStreamsContainer);
+        Button chatgptConnect=button("Connect to ChatGPT");
+        root.addView(chatgptConnect);
+        chatgptConnect.setOnClickListener(v->beginGhostPairing());
         Button youtubeStop=button("Stop live chat capture");
         root.addView(youtubeStop);
         youtubeStop.setOnClickListener(v->{
@@ -205,6 +210,76 @@ public class MainActivity extends AppCompatActivity {
         try{transformer.start(edited,rendered.getAbsolutePath());}catch(Exception e){isExporting=false;setBusy(false);status.setText("Could not start render: "+e.getMessage());}
     }
 
+
+
+    private JSONObject relayRequest(String path,String method,JSONObject payload,String bearer)throws Exception{
+        HttpURLConnection c=(HttpURLConnection)new URL(RELAY_URL+path).openConnection();
+        c.setRequestMethod(method);c.setConnectTimeout(10000);c.setReadTimeout(15000);
+        c.setRequestProperty("Content-Type","application/json");
+        if(bearer!=null&&!bearer.isEmpty())c.setRequestProperty("Authorization","Bearer "+bearer);
+        if(payload!=null){c.setDoOutput(true);try(OutputStream o=c.getOutputStream()){o.write(payload.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}}
+        int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
+        ByteArrayOutputStream out=new ByteArrayOutputStream();if(in!=null){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1)out.write(b,0,n);in.close();}
+        c.disconnect();JSONObject result=new JSONObject(out.toString("UTF-8"));
+        if(code<200||code>=300)throw new IOException(result.optString("error","Relay HTTP "+code));
+        return result;
+    }
+    private String ghostDeviceId(){
+        android.content.SharedPreferences p=getSharedPreferences(RELAY_PREFS,MODE_PRIVATE);
+        String id=p.getString("device_id",null);
+        if(id==null){id=java.util.UUID.randomUUID().toString();p.edit().putString("device_id",id).apply();}
+        return id;
+    }
+    private void beginGhostPairing(){
+        new Thread(()->{
+            try{
+                java.security.SecureRandom random=new java.security.SecureRandom();
+                String code=String.format(java.util.Locale.US,"%08d",random.nextInt(100000000));
+                JSONObject req=new JSONObject();req.put("deviceId",ghostDeviceId());req.put("code",code);
+                relayRequest("/api/pair/start","POST",req,null);
+                runOnUiThread(()->new android.app.AlertDialog.Builder(this).setTitle("Pair Ghost Clipper")
+                    .setMessage("Enter this one-time code in the Ghost Clipper ChatGPT integration:\n\n"+code+"\n\nIt expires in 5 minutes. Keep this screen open.")
+                    .setPositiveButton("Waiting for ChatGPT",(d,w)->waitForGhostPair(code)).setNegativeButton("Cancel",null).show());
+            }catch(Exception e){runOnUiThread(()->status.setText("Could not start ChatGPT pairing: "+e.getMessage()));}
+        },"GhostClip-PairStart").start();
+    }
+    private void waitForGhostPair(String code){
+        status.setText("Waiting for ChatGPT to approve pairing...");
+        new Thread(()->{
+            long until=System.currentTimeMillis()+300000;
+            while(System.currentTimeMillis()<until){
+                try{
+                    JSONObject q=new JSONObject();q.put("code",code);
+                    JSONObject r=relayRequest("/api/pair/status","POST",q,null);
+                    if("paired".equals(r.optString("status"))){
+                        getSharedPreferences(RELAY_PREFS,MODE_PRIVATE).edit().putString("token",r.getString("token")).putString("device_id",r.getString("deviceId")).apply();
+                        runOnUiThread(()->status.setText("ChatGPT connected. Automatic reconnection is enabled."));
+                        sendGhostHeartbeat();return;
+                    }
+                    Thread.sleep(2500);
+                }catch(Exception e){try{Thread.sleep(2500);}catch(InterruptedException ignored){return;}}
+            }
+            runOnUiThread(()->status.setText("Pairing expired. Tap Connect to ChatGPT to try again."));
+        },"GhostClip-PairWait").start();
+    }
+    private void reconnectGhostRelay(){
+        String token=getSharedPreferences(RELAY_PREFS,MODE_PRIVATE).getString("token",null);
+        if(token!=null&&!token.isEmpty())new Thread(()->{
+            try{JSONObject r=relayRequest("/api/device/heartbeat","POST",new JSONObject(),token);
+                runOnUiThread(()->status.setText("ChatGPT relay connected. Ghost Clipper is online."));
+            }catch(Exception e){runOnUiThread(()->status.setText("ChatGPT relay reconnect failed: "+e.getMessage()));}
+        },"GhostClip-AutoReconnect").start();
+    }
+    private void sendGhostHeartbeat(){
+        String token=getSharedPreferences(RELAY_PREFS,MODE_PRIVATE).getString("token",null);
+        if(token==null)return;
+        new Thread(()->{try{relayRequest("/api/device/heartbeat","POST",new JSONObject(),token);}catch(Exception ignored){}},"GhostClip-Heartbeat").start();
+    }
+    private void sendGhostEvent(String type,String title,String details){
+        String token=getSharedPreferences(RELAY_PREFS,MODE_PRIVATE).getString("token",null);
+        if(token==null)return;
+        new Thread(()->{try{JSONObject e=new JSONObject();e.put("type",type);e.put("title",title);e.put("details",details);relayRequest("/api/device/events","POST",e,token);}catch(Exception ignored){}},"GhostClip-Event").start();
+    }
 
     private void connectYoutube(){
         GoogleSignInOptions options=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -373,6 +448,7 @@ public class MainActivity extends AppCompatActivity {
                     final int count=added;
                     final ChatSpikeDetector.Spike spike=detectedSpike;
                     if(spike!=null){
+                        sendGhostEvent("chat_spike",selectedLiveTitle,spike.recentMessages+" messages in 10 seconds; multiplier "+spike.multiplier);
                         if(LiveScreenRecorderService.isActive){
                             Intent clipSignal=new Intent(this,LiveScreenRecorderService.class);
                             clipSignal.setAction(LiveScreenRecorderService.ACTION_SPIKE);
