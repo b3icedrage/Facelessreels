@@ -262,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
                     livePollIntervalMs=Math.max(1000,response.optLong("pollingIntervalMillis",5000));
                     JSONArray items=response.optJSONArray("items");
                     int added=0;
-                    long newestMessageAt=System.currentTimeMillis();
+                    ChatSpikeDetector.Spike detectedSpike=null;
                     if(items!=null)for(int i=0;i<items.length();i++){
                         JSONObject item=items.optJSONObject(i);
                         JSONObject snippet=item==null?null:item.optJSONObject("snippet");
@@ -270,14 +270,15 @@ public class MainActivity extends AppCompatActivity {
                         String published=snippet.optString("publishedAt","");
                         long at=System.currentTimeMillis();
                         try{at=Instant.parse(published).toEpochMilli();}catch(Exception ignored){}
-                        if(at>newestMessageAt)newestMessageAt=at;
                         long relative=Math.max(0,at-liveStartEpochMs);
                         long bin=(relative/5000L)*5000L;
                         synchronized(chatActivity){Double old=chatActivity.get(bin);chatActivity.put(bin,(old==null?0:old)+1);}
+                        ChatSpikeDetector.Spike candidate=chatSpikeDetector.add(at,1);
+                        if(candidate!=null)detectedSpike=candidate;
                         added++;
                     }
                     final int count=added;
-                    final ChatSpikeDetector.Spike spike=chatSpikeDetector.add(newestMessageAt,added);
+                    final ChatSpikeDetector.Spike spike=detectedSpike;
                     if(spike!=null){
                         long relative=Math.max(0,spike.timestampMs-liveStartEpochMs);
                         long bin=(relative/5000L)*5000L;
