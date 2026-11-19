@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
         Button youtubeConnect=button("Connect my YouTube channel");
         root.addView(youtubeConnect);
         youtubeConnect.setOnClickListener(v->connectYoutube());
-        Button youtubeFind=button("Find GTA 6 live streams from my subscriptions");
+        Button youtubeFind=button("Show all live YouTube streams");
         root.addView(youtubeFind);
         youtubeFind.setOnClickListener(v->findSubscribedLiveStreams());
         liveStreamsContainer=new LinearLayout(this);
@@ -184,21 +184,21 @@ public class MainActivity extends AppCompatActivity {
             connectYoutube();
             return;
         }
-        status.setText("Checking your subscriptions for live GTA 6 streams...");
+        status.setText("Loading all currently live YouTube streams...");
         if(liveStreamsContainer!=null)liveStreamsContainer.removeAllViews();
         new Thread(()->{
             try{
-                JSONObject response=YouTubeLiveClient.listSubscribedLiveGta6Streams(youtubeToken);
+                JSONObject response=YouTubeLiveClient.listAllLiveStreams(youtubeToken);
                 JSONArray items=response.optJSONArray("items");
                 int count=items==null?0:items.length();
-                int subscriptions=response.optInt("subscriptionsChecked",0);
+                int pages=response.optInt("pagesRead",0);
                 runOnUiThread(()->{
                     if(liveStreamsContainer!=null)liveStreamsContainer.removeAllViews();
                     if(count==0){
-                        TextView empty=label("No live GTA 6 streams were found among your "+subscriptions+" checked subscribed channels. Try again later.",13,Color.LTGRAY,false);
+                        TextView empty=label("No public live streams were returned by YouTube. Try again later.",13,Color.LTGRAY,false);
                         liveStreamsContainer.addView(empty);
                     }else{
-                        TextView heading=label(count+" LIVE GTA 6 STREAM"+(count==1?"":"S")+" FROM YOUR SUBSCRIPTIONS",12,Color.rgb(198,255,0),true);
+                        TextView heading=label(count+" LIVE YOUTUBE STREAM"+(count==1?"":"S"),12,Color.rgb(198,255,0),true);
                         liveStreamsContainer.addView(heading);
                         for(int i=0;i<items.length();i++){
                             JSONObject item=items.optJSONObject(i);
@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
                             String videoId=id.optString("videoId","");
                             if(videoId.isEmpty())continue;
                             String title=snippet.optString("title","GTA 6 livestream");
-                            String channel=snippet.optString("channelTitle","Subscribed channel");
+                            String channel=snippet.optString("channelTitle","YouTube channel");
                             Button stream=button(title+"  •  "+channel);
                             liveStreamsContainer.addView(stream);
                             stream.setOnClickListener(v->{
@@ -217,9 +217,9 @@ public class MainActivity extends AppCompatActivity {
                             });
                         }
                     }
-                    status.setText("Checked "+subscriptions+" subscribed channels. Found "+count+" matching live GTA 6 streams. Tap a stream to open it in YouTube.");
+                    status.setText("Loaded "+count+" live streams across "+pages+" result page"+(pages==1?"":"s")+". Choose one to open it in YouTube.");
                 });
-            }catch(Exception e){runOnUiThread(()->status.setText("Could not search subscribed live streams: "+e.getMessage()));}
+            }catch(Exception e){runOnUiThread(()->status.setText("Could not load live YouTube streams: "+e.getMessage()));}
         },"GhostClip-YouTubeDiscovery").start();
     }
 
