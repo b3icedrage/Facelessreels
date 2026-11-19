@@ -47,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private String youtubeToken, liveChatId, livePageToken;
     private long liveStartEpochMs=0;
     private long livePollIntervalMs=5000;
+    private final ChatSpikeDetector chatSpikeDetector=new ChatSpikeDetector();
+    private String selectedLiveTitle="";
     private boolean isExporting=false;
     private TextView sourceLabel, durationLabel, status;
     private LinearLayout liveStreamsContainer;
@@ -212,8 +214,31 @@ public class MainActivity extends AppCompatActivity {
                             Button stream=button(title+"  •  "+channel);
                             liveStreamsContainer.addView(stream);
                             stream.setOnClickListener(v->{
-                                try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://www.youtube.com/watch?v="+videoId)));}
-                                catch(Exception e){status.setText("Could not open this YouTube livestream: "+e.getMessage());}
+                                stream.setEnabled(false);
+                                status.setText("Connecting to live chat for: "+title);
+                                new Thread(()->{
+                                    try{
+                                        JSONObject details=YouTubeLiveClient.getLiveChatDetails(youtubeToken,videoId);
+                                        String chatId=details.optString("activeLiveChatId","");
+                                        String actualStart=details.optString("actualStartTime","");
+                                        long started=System.currentTimeMillis();
+                                        try{if(!actualStart.isEmpty())started=Instant.parse(actualStart).toEpochMilli();}catch(Exception ignored){}
+                                        liveChatId=chatId;
+                                        livePageToken=null;
+                                        liveStartEpochMs=started;
+                                        selectedLiveTitle=title;
+                                        runOnUiThread(()->{
+                                            stream.setEnabled(true);
+                                            stream.setText("MONITORING CHAT  •  "+title);
+                                            startLiveChatCapture();
+                                            status.setText("Monitoring chat for “"+title+"”. Keep Ghost Clipper open; chat spikes will be detected automatically.");
+                                            try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://www.youtube.com/watch?v="+videoId)));}
+                                            catch(Exception e){status.setText("Chat monitor is active, but YouTube could not open: "+e.getMessage());}
+                                        });
+                                    }catch(Exception e){
+                                        runOnUiThread(()->{stream.setEnabled(true);status.setText("Could not start chat monitoring: "+e.getMessage());});
+                                    }
+                                },"GhostClip-SelectLive").start();
                             });
                         }
                     }
@@ -225,6 +250,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void startLiveChatCapture(){
         liveChatRunning=false;
+        chatSpikeDetector.reset();
+        synchronized(chatActivity){chatActivity.clear();}
         liveChatRunning=true;
         new Thread(()->{
             while(liveChatRunning){
@@ -235,6 +262,7 @@ public class MainActivity extends AppCompatActivity {
                     livePollIntervalMs=Math.max(1000,response.optLong("pollingIntervalMillis",5000));
                     JSONArray items=response.optJSONArray("items");
                     int added=0;
+                    long newestMessageAt=System.currentTimeMillis();
                     if(items!=null)for(int i=0;i<items.length();i++){
                         JSONObject item=items.optJSONObject(i);
                         JSONObject snippet=item==null?null:item.optJSONObject("snippet");
@@ -242,13 +270,23 @@ public class MainActivity extends AppCompatActivity {
                         String published=snippet.optString("publishedAt","");
                         long at=System.currentTimeMillis();
                         try{at=Instant.parse(published).toEpochMilli();}catch(Exception ignored){}
+                        if(at>newestMessageAt)newestMessageAt=at;
                         long relative=Math.max(0,at-liveStartEpochMs);
                         long bin=(relative/5000L)*5000L;
                         synchronized(chatActivity){Double old=chatActivity.get(bin);chatActivity.put(bin,(old==null?0:old)+1);}
                         added++;
                     }
                     final int count=added;
-                    runOnUiThread(()->status.setText("YouTube live chat captured: "+count+" new messages; "+chatActivity.size()+" five-second activity windows. Tap Find highlight moments after recording."));
+                    final ChatSpikeDetector.Spike spike=chatSpikeDetector.add(newestMessageAt,added);
+                    if(spike!=null){
+                        long relative=Math.max(0,spike.timestampMs-liveStartEpochMs);
+                        long bin=(relative/5000L)*5000L;
+                        synchronized(chatActivity){chatActivity.put(bin,Math.max(chatActivity.containsKey(bin)?chatActivity.get(bin):0,spike.recentMessages));}
+                        final long seconds=relative/1000L;
+                        runOnUiThread(()->status.setText("🔥 CHAT EXPLOSION at "+String.format(java.util.Locale.US,"%02d:%02d",seconds/60,seconds%60)+" — "+spike.recentMessages+" messages in 10 seconds ("+String.format(java.util.Locale.US,"%.1fx",spike.multiplier)+" baseline). Event marked for clipping."));
+                    }else{
+                        runOnUiThread(()->status.setText("Monitoring “"+selectedLiveTitle+"” • "+count+" new messages • "+chatActivity.size()+" activity windows. Waiting for a chat explosion..."));
+                    }
                     Thread.sleep(livePollIntervalMs);
                 }catch(InterruptedException e){Thread.currentThread().interrupt();break;}
                 catch(Exception e){liveChatRunning=false;runOnUiThread(()->status.setText("Live chat capture stopped: "+e.getMessage()));}
