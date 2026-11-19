@@ -52,7 +52,7 @@ public final class LiveScreenRecorderService extends Service {
             int code=intent.getIntExtra(EXTRA_RESULT_CODE,Activity.RESULT_CANCELED);
             Intent data=intent.getParcelableExtra(EXTRA_DATA);
             if(Build.VERSION.SDK_INT>=29)startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);else startForeground(NOTIFICATION_ID,notification("Rolling video buffer active"));
-            try{beginProjection(code,data);}catch(Exception e){broadcast("Could not start screen recording: "+e.getMessage(),null);stopSelf();}
+            try{beginProjection(code,data);}catch(Exception e){isActive=false;broadcast("Could not start screen recording: "+e.getMessage(),null);stopSelf();}
         }else if(ACTION_SPIKE.equals(action)){
             if(recording&&!triggered){triggered=true;handler.removeCallbacks(rotateTask);broadcast("Chat spike detected. Saving the previous 45 seconds and 10 seconds after the spike.",null);handler.postDelayed(finishTask,POST_ROLL_MS);}
         }else if(ACTION_STOP.equals(action)){finishCapture();}
