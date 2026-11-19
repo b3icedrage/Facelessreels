@@ -40,6 +40,59 @@ public final class YouTubeLiveClient {
         return response;
     }
 
+    /**
+     * Finds currently live GTA 6 videos and keeps only channels the signed-in
+     * user subscribes to. This is a discovery operation, not a broadcast lookup
+     * on the user's own channel.
+     */
+    public static JSONObject listSubscribedLiveGta6Streams(String token) throws Exception {
+        java.util.HashSet<String> subscribed = new java.util.HashSet<>();
+        String page = null;
+        int pages = 0;
+        do {
+            String path = "subscriptions?part=snippet&mine=true&maxResults=50";
+            if (page != null && !page.isEmpty()) path += "&pageToken=" + enc(page);
+            JSONObject response = get(path, token);
+            JSONArray items = response.optJSONArray("items");
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject item = items.optJSONObject(i);
+                    JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
+                    JSONObject resource = snippet == null ? null : snippet.optJSONObject("resourceId");
+                    if (resource != null) {
+                        String channelId = resource.optString("channelId", "");
+                        if (!channelId.isEmpty()) subscribed.add(channelId);
+                    }
+                }
+            }
+            page = response.optString("nextPageToken", null);
+            pages++;
+        } while (page != null && !page.isEmpty() && pages < 20);
+
+        JSONObject search = get("search?part=snippet&type=video&eventType=live&order=relevance&maxResults=50&q=" + enc("GTA 6"), token);
+        JSONArray found = search.optJSONArray("items");
+        JSONArray matches = new JSONArray();
+        if (found != null) {
+            for (int i = 0; i < found.length(); i++) {
+                JSONObject item = found.optJSONObject(i);
+                JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
+                if (snippet == null) continue;
+                String channelId = snippet.optString("channelId", "");
+                String title = snippet.optString("title", "");
+                String description = snippet.optString("description", "");
+                String searchable = (title + " " + description).toLowerCase(java.util.Locale.ROOT);
+                if (subscribed.contains(channelId) && (searchable.contains("gta 6") || searchable.contains("gta vi"))) {
+                    matches.put(item);
+                }
+            }
+        }
+        JSONObject result = new JSONObject();
+        result.put("items", matches);
+        result.put("subscriptionsChecked", subscribed.size());
+        result.put("subscriptionPagesRead", pages);
+        return result;
+    }
+
     public static JSONObject listChatMessages(String token,String chatId,String pageToken) throws Exception {
         String path="liveChat/messages?part=id%2Csnippet&liveChatId="+enc(chatId)+"&maxResults=2000";
         if(pageToken!=null&&!pageToken.isEmpty())path+="&pageToken="+enc(pageToken);
