@@ -35,7 +35,7 @@ import java.io.*;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13, CONNECT_YOUTUBE=14;
+    private static final int PICK_VIDEO=10, SAVE_VIDEO=11, SAVE_SRT=12, PICK_CHAT=13, CONNECT_YOUTUBE=14, CAPTURE_SCREEN=15;
     private static final String YOUTUBE_SCOPE="https://www.googleapis.com/auth/youtube.readonly";
     private Uri source;
     private long durationMs=-1;
@@ -56,9 +56,10 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox portrait, mute;
     private Button export, cancel;
     private ProgressBar progress;
+    private android.content.BroadcastReceiver recorderReceiver;
 
     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
-    @Override public void onCreate(@Nullable Bundle state){super.onCreate(state); buildUi();}
+    @Override public void onCreate(@Nullable Bundle state){super.onCreate(state); buildUi(); registerRecorderReceiver();}
 
     private void buildUi(){
         ScrollView scroll=new ScrollView(this);
@@ -89,6 +90,9 @@ public class MainActivity extends AppCompatActivity {
         Button youtubeConnect=button("Connect my YouTube channel");
         root.addView(youtubeConnect);
         youtubeConnect.setOnClickListener(v->connectYoutube());
+        Button bufferButton=button("Enable rolling video buffer (screen capture)");
+        root.addView(bufferButton);
+        bufferButton.setOnClickListener(v->requestScreenCapture());
         Button youtubeFind=button("Show all live YouTube streams");
         root.addView(youtubeFind);
         youtubeFind.setOnClickListener(v->findSubscribedLiveStreams());
@@ -127,6 +131,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void pickSource(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VIDEO);}
     @Override protected void onActivityResult(int req,int res,@Nullable Intent data){super.onActivityResult(req,res,data);
+        if(req==CAPTURE_SCREEN){
+            if(res==RESULT_OK&&data!=null){
+                Intent start=new Intent(this,LiveScreenRecorderService.class);
+                start.setAction(LiveScreenRecorderService.ACTION_START);
+                start.putExtra(LiveScreenRecorderService.EXTRA_RESULT_CODE,res);
+                start.putExtra(LiveScreenRecorderService.EXTRA_DATA,data);
+                if(android.os.Build.VERSION.SDK_INT>=26)startForegroundService(start);else startService(start);
+                status.setText("Starting rolling video buffer. Switch to YouTube after the notification appears.");
+            }else status.setText("Screen recording permission was cancelled. Chat monitoring will work, but no video can be clipped.");
+            return;
+        }
         if(req==CONNECT_YOUTUBE){if(data!=null)finishYoutubeSignIn(data);else status.setText("Google sign-in returned no account data (result code "+res+"). Check the Android OAuth client package name and SHA-1 fingerprint in Google Cloud.");return;}
         if(res!=RESULT_OK||data==null||data.getData()==null)return;
         if(req==PICK_VIDEO){source=data.getData();try{getContentResolver().takePersistableUriPermission(source,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} inspectSource();}
@@ -280,6 +295,9 @@ public class MainActivity extends AppCompatActivity {
                     final int count=added;
                     final ChatSpikeDetector.Spike spike=detectedSpike;
                     if(spike!=null){
+                        Intent clipSignal=new Intent(this,LiveScreenRecorderService.class);
+                        clipSignal.setAction(LiveScreenRecorderService.ACTION_SPIKE);
+                        startService(clipSignal);
                         long relative=Math.max(0,spike.timestampMs-liveStartEpochMs);
                         long bin=(relative/5000L)*5000L;
                         synchronized(chatActivity){chatActivity.put(bin,Math.max(chatActivity.containsKey(bin)?chatActivity.get(bin):0,spike.recentMessages));}
@@ -295,8 +313,35 @@ public class MainActivity extends AppCompatActivity {
         },"GhostClip-YouTubeChat").start();
     }
 
+    private void requestScreenCapture(){
+        android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);
+        status.setText("Android will ask permission to record your screen. This is needed to capture the livestream video.");
+        startActivityForResult(manager.createScreenCaptureIntent(),CAPTURE_SCREEN);
+    }
+
+    private void registerRecorderReceiver(){
+        recorderReceiver=new android.content.BroadcastReceiver(){
+            @Override public void onReceive(android.content.Context context,Intent intent){
+                String message=intent.getStringExtra(LiveScreenRecorderService.EXTRA_MESSAGE);
+                java.util.ArrayList<String> files=intent.getStringArrayListExtra(LiveScreenRecorderService.EXTRA_FILES);
+                if(message!=null)status.setText(message);
+                if(files!=null&&!files.isEmpty()){
+                    rendered=new File(files.get(0));
+                    if(rendered.exists()&&rendered.getName().endsWith(".mp4")){
+                        status.setText("Automatic highlight ready. Choose where to save it.");
+                        saveDialog();
+                    }
+                }
+            }
+        };
+        IntentFilter filter=new IntentFilter(LiveScreenRecorderService.BROADCAST);
+        if(android.os.Build.VERSION.SDK_INT>=33)registerReceiver(recorderReceiver,filter,android.content.Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(recorderReceiver,filter);
+    }
+
     @Override protected void onDestroy(){
         liveChatRunning=false;
+        if(recorderReceiver!=null){try{unregisterReceiver(recorderReceiver);}catch(Exception ignored){}}
         super.onDestroy();
     }
 
