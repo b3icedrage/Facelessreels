@@ -641,6 +641,7 @@ public class MainActivity extends AppCompatActivity {
                     throw new IOException("Automatic Downloads saving requires Android 10 or newer.");
                 }
                 input.delete();
+                sendGhostEvent("clip_saved",input.getName(),"Saved to Downloads/Ghost Clipper");
                 runOnUiThread(()->{status.setText("Saved automatically: Downloads/Ghost Clipper/"+input.getName());Toast.makeText(this,"Ghost Clipper: clip saved in Downloads",Toast.LENGTH_LONG).show();});
             }catch(Exception e){
                 if(destination!=null)try{getContentResolver().delete(destination,null,null);}catch(Exception ignored){}
