@@ -101,7 +101,15 @@ public class MainActivity extends AppCompatActivity {
         root.addView(liveStreamsContainer);
         Button youtubeStop=button("Stop live chat capture");
         root.addView(youtubeStop);
-        youtubeStop.setOnClickListener(v->{liveChatRunning=false;status.setText("YouTube live chat capture stopped. Chat activity is retained for highlight detection.");});
+        youtubeStop.setOnClickListener(v->{
+            liveChatRunning=false;
+            if(LiveScreenRecorderService.isActive){
+                Intent stop=new Intent(this,LiveScreenRecorderService.class);
+                stop.setAction(LiveScreenRecorderService.ACTION_STOP);
+                startService(stop);
+            }
+            status.setText("YouTube live chat and video buffer stopping.");
+        });
         gap(root,22);
         root.addView(label("03  CLIP RANGE (SECONDS)",14,Color.WHITE,true));
         LinearLayout row=new LinearLayout(this);row.setOrientation(0);
