@@ -31,6 +31,8 @@ jobs:
           gradle-version: '8.9'
       - name: Build debug APK
         run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Print Android debug signing certificate SHA-1
+        run: keytool -list -v -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android -keypass android | grep -E "SHA1:|SHA-1:"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
