@@ -1,0 +1,25 @@
+{
+  "title": "A sample animated short",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "voiceover": "assets/voiceover.wav",
+  "music": "assets/music.wav",
+  "captions": "assets/captions.srt",
+  "shots": [
+    {
+      "id": "hook",
+      "duration_seconds": 3.5,
+      "video": "renders/hook.mp4",
+      "notes": "Open with a strong visual question; camera pushes in."
+    },
+    {
+      "id": "reveal",
+      "duration_seconds": 4.0,
+      "image": "renders/reveal.png",
+      "notes": "Use as a still only if animated with a deliberate camera move in the editor."
+    }
+  ]
+}
