@@ -23,7 +23,6 @@ GitHub Actions builds a debug APK on pushes to `main` and on manual workflow dis
 ## Privacy and cost
 Video decoding, scene scanning and speech recognition run on-device. No paid API, API key, account or cloud upload is used. The initial Vosk model download uses network data.
 
-
 ## YouTube live integration
 
 Ghost Clipper can connect to the signed-in channel with Google's Android sign-in flow, list that channel's active broadcasts, and collect live-chat message timestamps through the official YouTube Data API v3. Chat activity is grouped into five-second windows and can be combined with local scene-change analysis for highlight suggestions.
@@ -35,3 +34,11 @@ Setup:
 4. Open Ghost Clipper and tap **Connect my YouTube channel** while your channel is live.
 
 The app requests the read-only YouTube scope. Live chat is only available while the event is active; this feature does not download YouTube video files. Select an authorized local recording in Ghost Clipper to render clips. Keep the app open during capture. The API polling interval returned by YouTube is respected.
+
+## Separate animation production module
+
+The repository also includes an independent, local-first animation workflow foundation. It does not alter the Android app:
+
+- [Animation Studio guide](animation-studio/README.md)
+- [Example project manifest](animation-studio/project.example.json)
+- [Asset and media validator](animation-studio/validate_project.py)
