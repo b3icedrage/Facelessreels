@@ -1,7 +1,8 @@
-*.iml
-.gradle/
-/local.properties
-/.idea/
-/build/
-/app/build/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+node_modules/
 .DS_Store
+*.log

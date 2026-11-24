@@ -1,0 +1,7 @@
+{
+  "name": "pocketpilot175bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Telegram bot source for PocketPilot175Bot"
+}
