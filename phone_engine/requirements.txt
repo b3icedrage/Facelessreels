@@ -1,0 +1,4 @@
+BinaryOptionsToolsV2==0.2.18
+fastapi
+uvicorn[standard]
+python-dotenv
